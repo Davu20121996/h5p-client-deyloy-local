@@ -1,2 +1,7 @@
 /.env.docker
 /.admin-initial.txt
+/.env.production
+/.env
+/output/
+/backups/
+/auth.json

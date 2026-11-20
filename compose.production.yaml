@@ -1,0 +1,101 @@
+# H5P Client - deploy truc tiep tu GitHub bang Dockhand, khong chay setup.sh.
+# Compose Path: compose.production.yaml | Context directory: .
+# Bat Build images on deploy; nhap bien theo .env.production.example.
+# Lan dau: APP_URL, APP_KEY, DB_PASSWORD, ADMIN_EMAIL, ADMIN_PASSWORD.
+# Giu nguyen APP_KEY va volume khi cap nhat; init thanh cong se Exited (0).
+name: secure-lti
+
+x-app: &app
+  image: secure-lti-production-app:local
+  pull_policy: build
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.production
+    target: app
+  environment: &environment
+    APP_NAME: Secure LTI
+    APP_ENV: production
+    APP_DEBUG: "false"
+    APP_KEY: ${APP_KEY:?Set APP_KEY in Dockhand}
+    APP_URL: ${APP_URL:?Set APP_URL in Dockhand}
+    APP_LOCALE: vi
+    LOG_CHANNEL: stderr
+    LOG_LEVEL: warning
+    HASH_DRIVER: argon2id
+    DB_CONNECTION: pgsql
+    DB_HOST: db
+    DB_PORT: 5432
+    DB_DATABASE: lti
+    DB_USERNAME: lti
+    DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in Dockhand}
+    SESSION_DRIVER: database
+    SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
+    SESSION_SAME_SITE: ${SESSION_SAME_SITE:-none}
+    SESSION_HTTP_ONLY: "true"
+    CACHE_STORE: database
+    QUEUE_CONNECTION: sync
+    TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1}
+  volumes:
+    - storage:/var/www/app/storage
+
+services:
+  # Runs on deployment, not through setup.sh. A failure prevents app startup.
+  init:
+    <<: *app
+    restart: "no"
+    entrypoint: ["sh", "/usr/local/bin/production-init.sh"]
+    environment:
+      <<: *environment
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_NAME: ${ADMIN_NAME:-Quản trị hệ thống}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    <<: *app
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  nginx:
+    image: secure-lti-production-web:local
+    pull_policy: build
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.production
+      target: web
+    restart: unless-stopped
+    ports:
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-9080}:80"
+    volumes:
+      - storage:/var/www/app/storage:ro
+    depends_on:
+      app:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lti
+      POSTGRES_USER: lti
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in Dockhand}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "lti", "-d", "lti"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  database:
+  storage:

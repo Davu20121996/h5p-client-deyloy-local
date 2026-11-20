@@ -1,0 +1,35 @@
+FROM php:8.4-fpm AS php-build
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq-dev unzip \
+    && docker-php-ext-install pdo_pgsql opcache \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+WORKDIR /var/www/app
+ENV APP_ENV=production APP_DEBUG=false
+COPY source/composer.json source/composer.lock ./
+RUN composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader
+COPY source/ ./
+RUN mkdir -p storage/app/public storage/app/private storage/framework/cache/data \
+        storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && composer dump-autoload --no-dev --optimize \
+    && chown -R www-data:www-data storage bootstrap/cache
+
+FROM node:22-bookworm-slim AS assets
+WORKDIR /work
+COPY source/package.json source/package-lock.json ./
+RUN npm ci
+COPY source/ ./
+COPY --from=php-build /var/www/app/vendor ./vendor
+RUN npm run build
+
+FROM php-build AS app
+COPY --from=assets /work/public/build ./public/build
+COPY docker/opcache.production.ini /usr/local/etc/php/conf.d/zz-opcache.ini
+COPY docker/production-init.sh /usr/local/bin/production-init.sh
+COPY docker/bootstrap-admin.php /usr/local/bin/bootstrap-admin.php
+RUN test ! -e public/storage && ln -s /var/www/app/storage/app/public public/storage
+CMD ["php-fpm"]
+
+FROM nginx:alpine AS web
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=app /var/www/app/public /var/www/app/public
