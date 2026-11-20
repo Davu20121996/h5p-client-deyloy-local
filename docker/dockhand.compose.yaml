@@ -1,0 +1,21 @@
+name: dockhand
+
+services:
+  dockhand:
+    image: fnsys/dockhand:latest
+    container_name: dockhand
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    group_add:
+      - "0"
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dockhand_data:/app/data
+      - ../:/run/desktop/mnt/host/e/laragon/www/project-docker/Secure-LTI-Testing-Platform
+      - ../../H5P-Hub:/run/desktop/mnt/host/e/laragon/www/project-docker/H5P-Hub
+
+volumes:
+  dockhand_data:

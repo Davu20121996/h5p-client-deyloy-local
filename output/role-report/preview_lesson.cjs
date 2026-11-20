@@ -1,0 +1,24 @@
+const fs = require('fs');
+const { chromium } = require('C:/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+(async()=>{
+ const browser=await chromium.launch({channel:'chrome',headless:true});
+ const page=await browser.newPage({viewport:{width:1440,height:1100}});
+ let html=fs.readFileSync('source/resources/views/learn.blade.php','utf8').replace(/@extends[^\n]*|@section[^\n]*|@endsection|@csrf/g,'').replace(/\{\{ \$item->title \}\}/g,'HTML cơ bản – Video và 5 câu trắc nghiệm').replace(/\{\{ \$item->maximum \}\}/g,'10').replace(/\{\{[^}]*\}\}/g,'1').replace(/<script[\s\S]*?<\/script>/g,'');
+ const css=fs.readFileSync('source/public/lms.css','utf8');
+ await page.setContent(`<html lang="vi"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style><main class="container">${html}</main></html>`);
+ await page.addScriptTag({content:fs.readFileSync('source/public/learning.js','utf8')});
+ await page.screenshot({path:'output/role-report/lesson-desktop.png',fullPage:true});
+ await page.locator('[data-learning-expand]').click();
+ if (!(await page.locator('[data-learning-player]').getAttribute('class')).includes('is-expanded')) throw Error('Expand failed');
+ await page.keyboard.press('Escape');
+ if ((await page.locator('[data-learning-player]').getAttribute('class')).includes('is-expanded')) throw Error('Collapse failed');
+ await page.setViewportSize({width:390,height:844});
+ await page.screenshot({path:'output/role-report/lesson-mobile.png',fullPage:true});
+ if (await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)) throw Error('Mobile overflow');
+ await page.locator('[data-learning-launch]').evaluate(form=>form.addEventListener('submit',e=>e.preventDefault()));
+ await page.locator('.lesson-start').click();
+ if (!(await page.locator('[data-learning-placeholder]').isHidden())) throw Error('Placeholder still visible');
+ if (!(await page.locator('iframe').isVisible())) throw Error('Iframe hidden');
+ console.log('Desktop/mobile layout, expand, Escape, launch and overflow checks passed');
+ await browser.close();
+})();

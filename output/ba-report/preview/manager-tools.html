@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quản trị · Không gian học tập</title>
+
+
+
+<link rel="stylesheet" href="/lms.css">
+</head>
+<body>
+    <header class="top"><a class="brand" href="/"><span class="logo" aria-hidden="true">✳</span><span>Secure LTI<small>PHÒNG THỬ NGHIỆM HỌC LIỆU</small></span></a>
+<form method="post" action="/logout" class="account"><input type="hidden" name="_token" value="" autocomplete="off"> <span>Quản lý Tplus</span><button class="outline">Đăng xuất</button></form>
+<details class="mobile-menu">
+    <summary><span aria-hidden="true">☰</span> Menu</summary>
+    <nav aria-label="Điều hướng chính">
+            <a href="/" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m2 9 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v7"/>
+            </svg>
+            <span>Khóa học</span>
+        </a>
+            <a href="/admin/tenants" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M3 21h18M6 21V5l6-3 6 3v16M10 9h4m-4 4h4m-4 4h4"/>
+            </svg>
+            <span>Tổ chức</span>
+        </a>
+            <a href="/admin/users" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <circle cx="9" cy="7" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m1-16a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>
+            </svg>
+            <span>Tài khoản</span>
+        </a>
+            <a href="/admin/tools"  aria-current="page" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M9 3v5m6-5v5M6 8h12v3a6 6 0 0 1-12 0V8Zm6 9v4"/>
+            </svg>
+            <span>Công cụ LTI</span>
+        </a>
+            <a href="/admin/logs" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10l-7-7Zm0 0v7h7M8 13h8m-8 4h8"/>
+            </svg>
+            <span>Nhật ký LTI</span>
+        </a>
+            <a href="/account/password" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>
+            </svg>
+            <span>Đổi mật khẩu</span>
+        </a>
+        </nav>
+</details>
+</header>
+<div class="workspace">
+<aside class="sidebar">
+    <nav aria-label="Điều hướng chính">
+            <a href="/" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m2 9 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v7"/>
+            </svg>
+            <span>Khóa học</span>
+        </a>
+            <a href="/admin/tenants" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M3 21h18M6 21V5l6-3 6 3v16M10 9h4m-4 4h4m-4 4h4"/>
+            </svg>
+            <span>Tổ chức</span>
+        </a>
+            <a href="/admin/users" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <circle cx="9" cy="7" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m1-16a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>
+            </svg>
+            <span>Tài khoản</span>
+        </a>
+            <a href="/admin/tools"  aria-current="page" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M9 3v5m6-5v5M6 8h12v3a6 6 0 0 1-12 0V8Zm6 9v4"/>
+            </svg>
+            <span>Công cụ LTI</span>
+        </a>
+            <a href="/admin/logs" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10l-7-7Zm0 0v7h7M8 13h8m-8 4h8"/>
+            </svg>
+            <span>Nhật ký LTI</span>
+        </a>
+            <a href="/account/password" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>
+            </svg>
+            <span>Đổi mật khẩu</span>
+        </a>
+        </nav>
+
+</aside>
+<main class="container">
+<section class="hero"><span class="eyebrow">QUẢN TRỊ HỆ THỐNG</span><h1>Quản trị</h1><p>Quản lý tài khoản, kết nối H5P và theo dõi sự kiện LTI.</p><div class="orb" aria-hidden="true"></div></section>
+<h2 class="section-title">Cấu hình nền tảng LTI 1.3</h2>
+<section class="card"><dl class="endpoints">
+<dt>Issuer</dt><dd>https://bbs-reflection-cradle-roommate.trycloudflare.com</dd>
+<dt>OIDC authorization</dt><dd>https://bbs-reflection-cradle-roommate.trycloudflare.com/lti/authorize</dd>
+<dt>JWKS</dt><dd>https://bbs-reflection-cradle-roommate.trycloudflare.com/lti/jwks</dd>
+<dt>Access token</dt><dd>https://bbs-reflection-cradle-roommate.trycloudflare.com/lti/token</dd>
+</dl></section>
+<div class="grid section management">
+<div class="modal-action">
+    <button type="button" class="outline" data-modal-open="tool-create">Đăng ký công cụ LTI</button>
+    <dialog id="tool-create" class="modal" aria-labelledby="tool-create-title" >
+        <header class="modal-header">
+            <h2 id="tool-create-title">Đăng ký công cụ LTI</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <form method="post" action="/admin/tools" class="fields"><input type="hidden" name="_token" value="" autocomplete="off"><input type="hidden" name="_modal" value="tool-create">
+<label>Tên công cụ<input name="name" value="" required></label>
+<label>Client ID<input name="client_id" value="" required></label>
+<label>Deployment ID<input name="deployment_id" value="" required></label>
+<label>Tool Login URL<input type="url" name="login_url" value="" required></label>
+<label>Tool Redirect URI<input type="url" name="redirect_uri" value="" required></label>
+<label>Khóa công khai RSA (PEM)
+    <textarea name="public_key" rows="5" aria-describedby="tool-create-key-help" required></textarea>
+    <small id="tool-create-key-help">Dán khóa công khai tương ứng với khóa H5P Hub đang dùng để ký yêu cầu cấp token AGS. Sau khi đổi khóa trên Hub, cập nhật trường này cho từng bản đăng ký đang dùng Hub.</small>
+</label>
+<button>Đăng ký công cụ</button>
+</form>
+    </dialog>
+</div>
+</div>
+<h2 class="section-title">Công cụ đã đăng ký</h2>
+<h3 class="section-title">Tplus</h3>
+<section class="card table-wrap"><table><thead><tr><th>Tên</th><th>Client ID</th><th>Deployment ID</th><th>Thao tác</th></tr></thead><tbody>
+<tr><td>tplus hub</td><td>h5p-hub-client-tplus</td><td>deployment-tplus</td><td>
+<div class="modal-action">
+    <button type="button" class="outline" data-modal-open="tool-edit-5">Sửa công cụ LTI</button>
+    <dialog id="tool-edit-5" class="modal" aria-labelledby="tool-edit-5-title" >
+        <header class="modal-header">
+            <h2 id="tool-edit-5-title">Sửa công cụ LTI</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <form method="post" action="/admin/tools/5" class="fields">
+<input type="hidden" name="_token" value="" autocomplete="off"> <input type="hidden" name="_method" value="PUT"><input type="hidden" name="_modal" value="tool-edit-5">
+<label>Tên công cụ<input name="name" value="tplus hub" required></label>
+<label>Client ID<input name="client_id" value="h5p-hub-client-tplus" required></label>
+<label>Deployment ID<input name="deployment_id" value="deployment-tplus" required></label>
+<label>Tool Login URL<input type="url" name="login_url" value="https://phpbb-winning-self-posts.trycloudflare.com/lti/login" required></label>
+<label>Tool Redirect URI<input type="url" name="redirect_uri" value="https://phpbb-winning-self-posts.trycloudflare.com/lti/launch" required></label>
+<label>Khóa công khai RSA (PEM)
+    <textarea name="public_key" rows="5" aria-describedby="tool-edit-5-key-help" required>-----BEGIN PUBLIC KEY-----
+MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4jwVlg7EElcKHitTdiNS
+l/uXZXumeArPkQKyUqXRXuVnQoIQV+bfEZZOGlhwJFdV5uqX6KZV78qJrbR/AyMD
+WGv+MNikvZYAFox66X+1KROEq1P312eky4Pd2Qbio6TdcyrrVAJ9s1/NKsRR83q4
+ckM4FeVlr7EVMrT4K8vv0/niv8rB+HpRe864gZkYU0R23bvfHhhUd14lfidTriVp
+x87rwlBLoCf7PXHpFI5ZUcYvm+BUhTkJGRYVCg0MxKKDpQNiXS+KEAW8+lSQ3V8G
+OlqUq0eV6zh1pmRot5TcmnX5uZNExOBf+NnDuO4dNIIfnWI/0yt1ASDqzQO5+mSX
+np30/DGYost/AWIqQtJCaNXBHo8uhtS9FR3SC/YxVbFkmw7I238Gw/FZIIQI0E2o
+E2q0ozSgVWSYbFgc6TvCBefw4/BbCeBLUuPIyr8Dj8LAwxrGgdKoyylcAdp2WURQ
+tw+ghajynG2cnkAuXvEkgoHFxjk3AjvC0zo3q4oGtKB7AgMBAAE=
+-----END PUBLIC KEY-----
+</textarea>
+    <small id="tool-edit-5-key-help">Dán khóa công khai tương ứng với khóa H5P Hub đang dùng để ký yêu cầu cấp token AGS. Sau khi đổi khóa trên Hub, cập nhật trường này cho từng bản đăng ký đang dùng Hub.</small>
+</label>
+<button>Lưu thay đổi</button>
+</form>
+    </dialog>
+</div>
+</td></tr></tbody></table></section>
+
+</main>
+</div><div class="sunset-stripe" aria-hidden="true"></div>
+<footer class="site-footer"><a href="/">Secure LTI</a><span>H5P Hosting · LTI 1.3</span></footer>
+<script defer src="/lms-dialog.js"></script>
+</body>
+</html>

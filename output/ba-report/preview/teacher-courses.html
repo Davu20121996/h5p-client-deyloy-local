@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Khóa học · Không gian học tập</title>
+
+
+
+<link rel="stylesheet" href="/lms.css">
+</head>
+<body>
+    <header class="top"><a class="brand" href="/"><span class="logo" aria-hidden="true">✳</span><span>Secure LTI<small>PHÒNG THỬ NGHIỆM HỌC LIỆU</small></span></a>
+<form method="post" action="/logout" class="account"><input type="hidden" name="_token" value="" autocomplete="off"> <span>Giáo viên Tplus</span><button class="outline">Đăng xuất</button></form>
+<details class="mobile-menu">
+    <summary><span aria-hidden="true">☰</span> Menu</summary>
+    <nav aria-label="Điều hướng chính">
+            <a href="/"  aria-current="page" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m2 9 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v7"/>
+            </svg>
+            <span>Khóa học</span>
+        </a>
+            <a href="/account/password" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>
+            </svg>
+            <span>Đổi mật khẩu</span>
+        </a>
+        </nav>
+</details>
+</header>
+<div class="workspace">
+<aside class="sidebar">
+    <nav aria-label="Điều hướng chính">
+            <a href="/"  aria-current="page" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m2 9 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v7"/>
+            </svg>
+            <span>Khóa học</span>
+        </a>
+            <a href="/account/password" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>
+            </svg>
+            <span>Đổi mật khẩu</span>
+        </a>
+        </nav>
+
+</aside>
+<main class="container">
+<section class="hero">
+    <span class="eyebrow">Tplus</span>
+    <h1>Xin chào, Giáo viên Tplus</h1>
+    <p>tplus chào bạn</p>
+    <div class="orb" aria-hidden="true"></div>
+</section>
+<h2 class="section-title">Khóa học của bạn <span class="pill">1</span></h2>
+<div class="grid">
+<a class="card course-card" href="/courses/12"><span class="tile" aria-hidden="true">▤</span><h3>CSKH</h3><p>chăm sóc khách hàng</p><span class="link">Mở khóa học →</span></a>
+</div>
+<div class="modal-action">
+    <button type="button" class="outline" data-modal-open="course-create">Tạo khóa học</button>
+    <dialog id="course-create" class="modal" aria-labelledby="course-create-title" >
+        <header class="modal-header">
+            <h2 id="course-create-title">Tạo khóa học</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <form method="post" action="/courses" class="fields"><input type="hidden" name="_token" value="" autocomplete="off"><input type="hidden" name="_modal" value="course-create">
+<label>Tên khóa học<input name="title" maxlength="255" required></label>
+<label>Mô tả<textarea name="description" maxlength="3000"></textarea></label>
+<button>Tạo khóa học</button></form>
+    </dialog>
+</div>
+
+</main>
+</div><div class="sunset-stripe" aria-hidden="true"></div>
+<footer class="site-footer"><a href="/">Secure LTI</a><span>H5P Hosting · LTI 1.3</span></footer>
+<script defer src="/lms-dialog.js"></script>
+</body>
+</html>

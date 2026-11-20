@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quản trị · Không gian học tập</title>
+
+
+
+<link rel="stylesheet" href="/lms.css">
+</head>
+<body>
+    <header class="top"><a class="brand" href="/"><span class="logo" aria-hidden="true">✳</span><span>Secure LTI<small>PHÒNG THỬ NGHIỆM HỌC LIỆU</small></span></a>
+<form method="post" action="/logout" class="account"><input type="hidden" name="_token" value="" autocomplete="off"> <span>Quản lý Tplus</span><button class="outline">Đăng xuất</button></form>
+<details class="mobile-menu">
+    <summary><span aria-hidden="true">☰</span> Menu</summary>
+    <nav aria-label="Điều hướng chính">
+            <a href="/" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m2 9 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v7"/>
+            </svg>
+            <span>Khóa học</span>
+        </a>
+            <a href="/admin/tenants" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M3 21h18M6 21V5l6-3 6 3v16M10 9h4m-4 4h4m-4 4h4"/>
+            </svg>
+            <span>Tổ chức</span>
+        </a>
+            <a href="/admin/users"  aria-current="page" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <circle cx="9" cy="7" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m1-16a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>
+            </svg>
+            <span>Tài khoản</span>
+        </a>
+            <a href="/admin/tools" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M9 3v5m6-5v5M6 8h12v3a6 6 0 0 1-12 0V8Zm6 9v4"/>
+            </svg>
+            <span>Công cụ LTI</span>
+        </a>
+            <a href="/admin/logs" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10l-7-7Zm0 0v7h7M8 13h8m-8 4h8"/>
+            </svg>
+            <span>Nhật ký LTI</span>
+        </a>
+            <a href="/account/password" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>
+            </svg>
+            <span>Đổi mật khẩu</span>
+        </a>
+        </nav>
+</details>
+</header>
+<div class="workspace">
+<aside class="sidebar">
+    <nav aria-label="Điều hướng chính">
+            <a href="/" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m2 9 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v7"/>
+            </svg>
+            <span>Khóa học</span>
+        </a>
+            <a href="/admin/tenants" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M3 21h18M6 21V5l6-3 6 3v16M10 9h4m-4 4h4m-4 4h4"/>
+            </svg>
+            <span>Tổ chức</span>
+        </a>
+            <a href="/admin/users"  aria-current="page" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <circle cx="9" cy="7" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m1-16a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>
+            </svg>
+            <span>Tài khoản</span>
+        </a>
+            <a href="/admin/tools" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M9 3v5m6-5v5M6 8h12v3a6 6 0 0 1-12 0V8Zm6 9v4"/>
+            </svg>
+            <span>Công cụ LTI</span>
+        </a>
+            <a href="/admin/logs" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10l-7-7Zm0 0v7h7M8 13h8m-8 4h8"/>
+            </svg>
+            <span>Nhật ký LTI</span>
+        </a>
+            <a href="/account/password" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>
+            </svg>
+            <span>Đổi mật khẩu</span>
+        </a>
+        </nav>
+
+</aside>
+<main class="container">
+<h1>Tài khoản</h1>
+<div class="section">
+<div class="modal-action">
+    <button type="button" class="outline" data-modal-open="user-create">Tạo tài khoản</button>
+    <dialog id="user-create" class="modal" aria-labelledby="user-create-title" >
+        <header class="modal-header">
+            <h2 id="user-create-title">Tạo tài khoản</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <form method="post" action="/admin/users" class="fields"><input type="hidden" name="_token" value="" autocomplete="off"><input type="hidden" name="_modal" value="user-create">
+<label>Họ tên<input name="name" required></label><label>Email<input name="email" type="email" required></label>
+<label>Vai trò<select name="role"><option value="student">Học viên</option><option value="teacher">Giáo viên</option></select></label>
+<label>Mật khẩu<input name="password" type="password" minlength="12" autocomplete="new-password" required></label>
+<button>Tạo tài khoản</button></form>
+    </dialog>
+</div>
+</div>
+<h2 class="section-title">Danh sách tài khoản</h2>
+<h3 class="section-title">Tplus</h3>
+<section class="card table-wrap"><table><thead><tr><th>Tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th></tr></thead><tbody>
+<tr><td>Giáo viên Tplus</td><td>teacher@tplus.local</td><td>
+<form method="post" action="/admin/users/15/role" class="fields"><input type="hidden" name="_token" value="" autocomplete="off"><label>Vai trò của Giáo viên Tplus
+<select name="role">
+    <option value="student" >Học viên</option>
+    <option value="teacher" selected>Giáo viên</option>
+</select></label>
+<button class="outline">Lưu vai trò</button>
+</form>
+</td><td>
+<form method="post" action="/admin/users/15/lock"><input type="hidden" name="_token" value="" autocomplete="off"><input type="hidden" name="locked" value="1"><button class="outline">Khóa</button></form></td></tr><tr><td>Học viên Tplus</td><td>student@tplus.local</td><td>
+<form method="post" action="/admin/users/16/role" class="fields"><input type="hidden" name="_token" value="" autocomplete="off"><label>Vai trò của Học viên Tplus
+<select name="role">
+    <option value="student" selected>Học viên</option>
+    <option value="teacher" >Giáo viên</option>
+</select></label>
+<button class="outline">Lưu vai trò</button>
+</form>
+</td><td>
+<form method="post" action="/admin/users/16/lock"><input type="hidden" name="_token" value="" autocomplete="off"><input type="hidden" name="locked" value="1"><button class="outline">Khóa</button></form></td></tr><tr><td>Quản lý Tplus</td><td>tenant-admin@tplus.local</td><td>
+Quản lý tổ chức
+</td><td>
+ Đang hoạt động </td></tr></tbody></table></section>
+
+</main>
+</div><div class="sunset-stripe" aria-hidden="true"></div>
+<footer class="site-footer"><a href="/">Secure LTI</a><span>H5P Hosting · LTI 1.3</span></footer>
+<script defer src="/lms-dialog.js"></script>
+</body>
+</html>

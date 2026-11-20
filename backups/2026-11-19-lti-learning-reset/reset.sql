@@ -1,0 +1,13 @@
+BEGIN;
+LOCK TABLE users, tenants, lti_registrations, lti_keys, roles, courses, activities, enrollments, activity_assignments, grades IN EXCLUSIVE MODE;
+CREATE TEMP TABLE preserved_before AS SELECT 'users' AS name, md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'')) AS hash FROM users t UNION ALL SELECT 'tenants', md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'')) FROM tenants t UNION ALL SELECT 'lti_registrations', md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'')) FROM lti_registrations t UNION ALL SELECT 'lti_keys', md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY kid)::text,'')) FROM lti_keys t UNION ALL SELECT 'roles', md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY code)::text,'')) FROM roles t;
+DELETE FROM grades;
+DELETE FROM activity_assignments;
+DELETE FROM enrollments;
+DELETE FROM activities;
+DELETE FROM courses;
+CREATE TEMP TABLE preserved_after AS SELECT 'users' AS name, md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'')) AS hash FROM users t UNION ALL SELECT 'tenants', md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'')) FROM tenants t UNION ALL SELECT 'lti_registrations', md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'')) FROM lti_registrations t UNION ALL SELECT 'lti_keys', md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY kid)::text,'')) FROM lti_keys t UNION ALL SELECT 'roles', md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY code)::text,'')) FROM roles t;
+DO $$ BEGIN IF EXISTS (SELECT * FROM preserved_before EXCEPT SELECT * FROM preserved_after) THEN RAISE EXCEPTION 'Preserved data changed'; END IF; END $$;
+SELECT b.name, b.hash=a.hash AS unchanged FROM preserved_before b JOIN preserved_after a USING(name);
+SELECT 'courses' AS item,count(*) FROM courses UNION ALL SELECT 'activities',count(*) FROM activities UNION ALL SELECT 'enrollments',count(*) FROM enrollments UNION ALL SELECT 'activity_assignments',count(*) FROM activity_assignments UNION ALL SELECT 'grades',count(*) FROM grades;
+COMMIT;

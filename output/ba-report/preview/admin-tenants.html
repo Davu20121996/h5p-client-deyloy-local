@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quản trị · Không gian học tập</title>
+
+
+
+<link rel="stylesheet" href="/lms.css">
+</head>
+<body>
+    <header class="top"><a class="brand" href="/"><span class="logo" aria-hidden="true">✳</span><span>Secure LTI<small>PHÒNG THỬ NGHIỆM HỌC LIỆU</small></span></a>
+<form method="post" action="/logout" class="account"><input type="hidden" name="_token" value="" autocomplete="off"> <span>Quản trị hệ thống</span><button class="outline">Đăng xuất</button></form>
+<details class="mobile-menu">
+    <summary><span aria-hidden="true">☰</span> Menu</summary>
+    <nav aria-label="Điều hướng chính">
+            <a href="/" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m2 9 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v7"/>
+            </svg>
+            <span>Khóa học</span>
+        </a>
+            <a href="/admin/tenants"  aria-current="page" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M3 21h18M6 21V5l6-3 6 3v16M10 9h4m-4 4h4m-4 4h4"/>
+            </svg>
+            <span>Tổ chức</span>
+        </a>
+            <a href="/admin/users" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <circle cx="9" cy="7" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m1-16a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>
+            </svg>
+            <span>Tài khoản</span>
+        </a>
+            <a href="/admin/tools" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M9 3v5m6-5v5M6 8h12v3a6 6 0 0 1-12 0V8Zm6 9v4"/>
+            </svg>
+            <span>Công cụ LTI</span>
+        </a>
+            <a href="/admin/logs" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10l-7-7Zm0 0v7h7M8 13h8m-8 4h8"/>
+            </svg>
+            <span>Nhật ký LTI</span>
+        </a>
+            <a href="/account/password" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>
+            </svg>
+            <span>Đổi mật khẩu</span>
+        </a>
+        </nav>
+</details>
+</header>
+<div class="workspace">
+<aside class="sidebar">
+    <nav aria-label="Điều hướng chính">
+            <a href="/" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m2 9 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v7"/>
+            </svg>
+            <span>Khóa học</span>
+        </a>
+            <a href="/admin/tenants"  aria-current="page" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M3 21h18M6 21V5l6-3 6 3v16M10 9h4m-4 4h4m-4 4h4"/>
+            </svg>
+            <span>Tổ chức</span>
+        </a>
+            <a href="/admin/users" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <circle cx="9" cy="7" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m1-16a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>
+            </svg>
+            <span>Tài khoản</span>
+        </a>
+            <a href="/admin/tools" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M9 3v5m6-5v5M6 8h12v3a6 6 0 0 1-12 0V8Zm6 9v4"/>
+            </svg>
+            <span>Công cụ LTI</span>
+        </a>
+            <a href="/admin/logs" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10l-7-7Zm0 0v7h7M8 13h8m-8 4h8"/>
+            </svg>
+            <span>Nhật ký LTI</span>
+        </a>
+            <a href="/account/password" >
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>
+            </svg>
+            <span>Đổi mật khẩu</span>
+        </a>
+        </nav>
+
+</aside>
+<main class="container">
+<h1>Tổ chức</h1>
+<div class="modal-action">
+    <button type="button" class="outline" data-modal-open="tenant-create">Tạo tổ chức và tài khoản quản lý</button>
+    <dialog id="tenant-create" class="modal" aria-labelledby="tenant-create-title" >
+        <header class="modal-header">
+            <h2 id="tenant-create-title">Tạo tổ chức và tài khoản quản lý</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <form method="post" action="/admin/tenants" class="fields"><input type="hidden" name="_token" value="" autocomplete="off"><input type="hidden" name="_modal" value="tenant-create">
+<label>Tên tổ chức<input name="tenant_name" value="" required></label>
+<label>Câu chào<textarea name="welcome_message" maxlength="1000"></textarea></label>
+<label>Tên người quản lý<input name="name" value="" required></label>
+<label>Email quản lý<input name="email" type="email" value="" required></label>
+<label>Mật khẩu ban đầu<input type="password" name="password" minlength="12" autocomplete="new-password" required></label>
+<button>Tạo tổ chức</button>
+</form>
+    </dialog>
+</div>
+<section class="card section"><ul>
+<li>
+    <h2>smb plus demo</h2>
+                        <p>smb chào bạn</p>
+                        <div class="modal-action">
+    <button type="button" class="outline" data-modal-open="tenant-welcome-3">Sửa câu chào</button>
+    <dialog id="tenant-welcome-3" class="modal" aria-labelledby="tenant-welcome-3-title" >
+        <header class="modal-header">
+            <h2 id="tenant-welcome-3-title">Sửa câu chào</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <form method="post" action="/admin/tenants/3/welcome" class="fields">
+                <input type="hidden" name="_token" value="" autocomplete="off">                <input type="hidden" name="_method" value="PUT">                <input type="hidden" name="_modal" value="tenant-welcome-3">
+                <label>Câu chào của smb plus demo<textarea name="welcome_message" maxlength="1000">smb chào bạn</textarea></label>
+                <button>Lưu câu chào</button>
+            </form>
+    </dialog>
+</div>
+                <div class="row">
+            <span class="grow">gv smb · gvsmb@smbplus.vn</span>
+                            <div class="modal-action">
+    <button type="button" class="outline" data-modal-open="grant-manager-12">Cấp quyền quản lý</button>
+    <dialog id="grant-manager-12" class="modal" aria-labelledby="grant-manager-12-title" >
+        <header class="modal-header">
+            <h2 id="grant-manager-12-title">Cấp quyền quản lý</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <p>gv smb sẽ có quyền quản lý người dùng, khóa học và công cụ H5P của smb plus demo.</p>
+                    <form method="post" action="/admin/tenants/3/managers/12">
+                        <input type="hidden" name="_token" value="" autocomplete="off">                        <button>Xác nhận cấp quyền</button>
+                    </form>
+    </dialog>
+</div>
+                    </div>
+            <div class="row">
+            <span class="grow">hv smb · hvsmb@gmail.com</span>
+                            <div class="modal-action">
+    <button type="button" class="outline" data-modal-open="grant-manager-13">Cấp quyền quản lý</button>
+    <dialog id="grant-manager-13" class="modal" aria-labelledby="grant-manager-13-title" >
+        <header class="modal-header">
+            <h2 id="grant-manager-13-title">Cấp quyền quản lý</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <p>hv smb sẽ có quyền quản lý người dùng, khóa học và công cụ H5P của smb plus demo.</p>
+                    <form method="post" action="/admin/tenants/3/managers/13">
+                        <input type="hidden" name="_token" value="" autocomplete="off">                        <button>Xác nhận cấp quyền</button>
+                    </form>
+    </dialog>
+</div>
+                    </div>
+            <div class="row">
+            <span class="grow">smb admin · smbadmin@smbplus.vn</span>
+                            <span class="pill">Quản lý tổ chức</span>
+                    </div>
+    </li>
+<li>
+    <h2>Tplus</h2>
+                        <p>tplus chào bạn</p>
+                        <div class="modal-action">
+    <button type="button" class="outline" data-modal-open="tenant-welcome-4">Sửa câu chào</button>
+    <dialog id="tenant-welcome-4" class="modal" aria-labelledby="tenant-welcome-4-title" >
+        <header class="modal-header">
+            <h2 id="tenant-welcome-4-title">Sửa câu chào</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <form method="post" action="/admin/tenants/4/welcome" class="fields">
+                <input type="hidden" name="_token" value="" autocomplete="off">                <input type="hidden" name="_method" value="PUT">                <input type="hidden" name="_modal" value="tenant-welcome-4">
+                <label>Câu chào của Tplus<textarea name="welcome_message" maxlength="1000">tplus chào bạn</textarea></label>
+                <button>Lưu câu chào</button>
+            </form>
+    </dialog>
+</div>
+                <div class="row">
+            <span class="grow">Giáo viên Tplus · teacher@tplus.local</span>
+                            <div class="modal-action">
+    <button type="button" class="outline" data-modal-open="grant-manager-15">Cấp quyền quản lý</button>
+    <dialog id="grant-manager-15" class="modal" aria-labelledby="grant-manager-15-title" >
+        <header class="modal-header">
+            <h2 id="grant-manager-15-title">Cấp quyền quản lý</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <p>Giáo viên Tplus sẽ có quyền quản lý người dùng, khóa học và công cụ H5P của Tplus.</p>
+                    <form method="post" action="/admin/tenants/4/managers/15">
+                        <input type="hidden" name="_token" value="" autocomplete="off">                        <button>Xác nhận cấp quyền</button>
+                    </form>
+    </dialog>
+</div>
+                    </div>
+            <div class="row">
+            <span class="grow">Học viên Tplus · student@tplus.local</span>
+                            <div class="modal-action">
+    <button type="button" class="outline" data-modal-open="grant-manager-16">Cấp quyền quản lý</button>
+    <dialog id="grant-manager-16" class="modal" aria-labelledby="grant-manager-16-title" >
+        <header class="modal-header">
+            <h2 id="grant-manager-16-title">Cấp quyền quản lý</h2>
+            <button type="button" class="outline" data-modal-close aria-label="Đóng">×</button>
+        </header>
+                <p>Học viên Tplus sẽ có quyền quản lý người dùng, khóa học và công cụ H5P của Tplus.</p>
+                    <form method="post" action="/admin/tenants/4/managers/16">
+                        <input type="hidden" name="_token" value="" autocomplete="off">                        <button>Xác nhận cấp quyền</button>
+                    </form>
+    </dialog>
+</div>
+                    </div>
+            <div class="row">
+            <span class="grow">Quản lý Tplus · tenant-admin@tplus.local</span>
+                            <span class="pill">Quản lý tổ chức</span>
+                    </div>
+    </li>
+</ul></section>
+
+</main>
+</div><div class="sunset-stripe" aria-hidden="true"></div>
+<footer class="site-footer"><a href="/">Secure LTI</a><span>H5P Hosting · LTI 1.3</span></footer>
+<script defer src="/lms-dialog.js"></script>
+</body>
+</html>

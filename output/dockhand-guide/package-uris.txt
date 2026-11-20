@@ -1,0 +1,162 @@
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  dirmngr fontconfig fontconfig-config fonts-dejavu-mono fonts-opensymbol
+  gnupg gnupg-l10n gpg gpg-agent gpgconf gpgsm iso-codes libabsl20240722
+  libabw-0.1-1 libassuan9 libavahi-client3 libavahi-common-data
+  libavahi-common3 libboost-iostreams1.83.0 libboost-locale1.83.0
+  libboost-thread1.83.0 libcairo2 libcap2-bin libclucene-contribs1t64
+  libclucene-core1t64 libcmis-0.6-6t64 libcups2t64 libcurl3t64-gnutls
+  libdbus-1-3 libdconf1 libdeflate0 libdrm-common libdrm2 libe-book-0.1-1
+  libeot0 libepoxy0 libepubgen-0.1-1 libetonyek-0.1-1 libexpat1
+  libexttextcat-2.0-0 libexttextcat-data libfontconfig1 libfreetype6
+  libgcrypt20 libglib2.0-0t64 libgpg-error0 libgpgme11t64 libgpgmepp6t64
+  libgraphite2-3 libgstreamer-plugins-base1.0-0 libgstreamer1.0-0
+  libharfbuzz-icu0 libharfbuzz0b libhunspell-1.7-0 libhyphen0 libice6 libicu76
+  libjbig0 libjpeg62-turbo libksba8 liblangtag-common liblangtag1 liblcms2-2
+  liblerc4 libltdl7 libmhash2 libmwaw-0.3-3 libmythes-1.2-0 libncursesw6
+  libngtcp2-16 libngtcp2-crypto-gnutls8 libnpth0t64 libnspr4 libnss3
+  libnumbertext-1.0-0 libnumbertext-data libodfgen-0.1-1 libopenjp2-7
+  liborc-0.4-0t64 liborcus-0.18-0 liborcus-parser-0.18-0 libpixman-1-0
+  libpng16-16t64 libpoppler147 libproc2-0 libraptor2-0 librasqal3t64
+  librdf0t64 libreoffice-base-core libreoffice-common libreoffice-core
+  libreoffice-style-colibre libreoffice-uiconfig-common
+  libreoffice-uiconfig-writer librevenge-0.0-0 libsharpyuv0 libsm6
+  libstaroffice-0.0-0 libtext-charwidth-perl libtext-wrapi18n-perl libtiff6
+  libuno-cppu3t64 libuno-cppuhelpergcc3-3t64 libuno-purpenvhelpergcc3-3t64
+  libuno-sal3t64 libuno-salhelpergcc3-3t64 libwebp7 libwpd-0.10-10
+  libwpg-0.3-3 libwps-0.4-4 libx11-6 libx11-data libx11-xcb1 libxau6
+  libxcb-render0 libxcb-shm0 libxcb1 libxdmcp6 libxext6 libxinerama1
+  libxmlsec1t64 libxmlsec1t64-nss libxrandr2 libxrender1 libxslt1.1 libyajl2
+  libzxcvbn0 libzxing3 pinentry-curses procps sensible-utils ucf
+  uno-libs-private ure x11-common
+Suggested packages:
+  dbus-user-session libpam-systemd pinentry-gnome3 tor fonts-crosextra-caladea
+  gpg-wks-server parcimonie xloadimage scdaemon tpm2daemon isoquery
+  cups-common rng-tools low-memory-monitor libvisual-0.4-plugins
+  gstreamer1.0-tools liblcms2-utils raptor2-utils rasqal-utils
+  librdf-storage-mysql librdf-storage-postgresql librdf-storage-sqlite
+  librdf-storage-virtuoso redland-utils libreoffice-base python3-scriptforge
+  libreoffice-java-common default-jre | java-runtime | java8-runtime | jre
+  pinentry-doc
+Recommended packages:
+  gnupg-utils gpg-wks-client gpgv libpam-cap dbus libglib2.0-data
+  shared-mime-info xdg-user-dirs libgpg-error-l10n gstreamer1.0-plugins-base
+  hunspell-en-us | hunspell-dictionary | myspell-dictionary libgpm2
+  poppler-data xdg-utils fonts-liberation | ttf-mscorefonts-installer apparmor
+  python3-uno libpaper-utils gstreamer1.0-plugins-good
+  gstreamer1.0-plugins-ugly gstreamer1.0-plugins-bad gstreamer1.0-libav
+  libreoffice-math psmisc linux-sysctl-defaults
+The following NEW packages will be installed:
+  dirmngr fontconfig fontconfig-config fonts-crosextra-carlito
+  fonts-dejavu-core fonts-dejavu-mono fonts-opensymbol gnupg gnupg-l10n gpg
+  gpg-agent gpgconf gpgsm iso-codes libabsl20240722 libabw-0.1-1 libassuan9
+  libavahi-client3 libavahi-common-data libavahi-common3
+  libboost-iostreams1.83.0 libboost-locale1.83.0 libboost-thread1.83.0
+  libcairo2 libcap2-bin libclucene-contribs1t64 libclucene-core1t64
+  libcmis-0.6-6t64 libcups2t64 libcurl3t64-gnutls libdbus-1-3 libdconf1
+  libdeflate0 libdrm-common libdrm2 libe-book-0.1-1 libeot0 libepoxy0
+  libepubgen-0.1-1 libetonyek-0.1-1 libexpat1 libexttextcat-2.0-0
+  libexttextcat-data libfontconfig1 libfreetype6 libgcrypt20 libglib2.0-0t64
+  libgpg-error0 libgpgme11t64 libgpgmepp6t64 libgraphite2-3
+  libgstreamer-plugins-base1.0-0 libgstreamer1.0-0 libharfbuzz-icu0
+  libharfbuzz0b libhunspell-1.7-0 libhyphen0 libice6 libicu76 libjbig0
+  libjpeg62-turbo libksba8 liblangtag-common liblangtag1 liblcms2-2 liblerc4
+  libltdl7 libmhash2 libmwaw-0.3-3 libmythes-1.2-0 libncursesw6 libngtcp2-16
+  libngtcp2-crypto-gnutls8 libnpth0t64 libnspr4 libnss3 libnumbertext-1.0-0
+  libnumbertext-data libodfgen-0.1-1 libopenjp2-7 liborc-0.4-0t64
+  liborcus-0.18-0 liborcus-parser-0.18-0 libpixman-1-0 libpng16-16t64
+  libpoppler147 libproc2-0 libraptor2-0 librasqal3t64 librdf0t64
+  libreoffice-base-core libreoffice-common libreoffice-core
+  libreoffice-style-colibre libreoffice-uiconfig-common
+  libreoffice-uiconfig-writer libreoffice-writer librevenge-0.0-0 libsharpyuv0
+  libsm6 libstaroffice-0.0-0 libtext-charwidth-perl libtext-wrapi18n-perl
+  libtiff6 libuno-cppu3t64 libuno-cppuhelpergcc3-3t64
+  libuno-purpenvhelpergcc3-3t64 libuno-sal3t64 libuno-salhelpergcc3-3t64
+  libwebp7 libwpd-0.10-10 libwpg-0.3-3 libwps-0.4-4 libx11-6 libx11-data
+  libx11-xcb1 libxau6 libxcb-render0 libxcb-shm0 libxcb1 libxdmcp6 libxext6
+  libxinerama1 libxmlsec1t64 libxmlsec1t64-nss libxrandr2 libxrender1
+  libxslt1.1 libyajl2 libzxcvbn0 libzxing3 pinentry-curses procps
+  sensible-utils ucf uno-libs-private ure x11-common
+0 upgraded, 138 newly installed, 0 to remove and 4 not upgraded.
+Need to get 72.0 MB/126 MB of archives.
+After this operation, 429 MB of additional disk space will be used.
+'http://deb.debian.org/debian/pool/main/libg/libgcrypt20/libgcrypt20_1.11.0-7%2bdeb13u1_amd64.deb' libgcrypt20_1.11.0-7+deb13u1_amd64.deb 843104 MD5Sum:a6c779cfdca3327232966a8d9bdad748
+'http://deb.debian.org/debian/pool/main/g/gnupg2/gpgconf_2.4.7-21%2bdeb13u1%2bb5_amd64.deb' gpgconf_2.4.7-21+deb13u1+b5_amd64.deb 128880 MD5Sum:46a4a0bcc5e0e435aaefd02180316da8
+'http://deb.debian.org/debian/pool/main/libk/libksba/libksba8_1.6.7-2%2bb1_amd64.deb' libksba8_1.6.7-2+b1_amd64.deb 136048 MD5Sum:c3c403d168dc06715353eea1d3604f0c
+'http://deb.debian.org/debian/pool/main/n/npth/libnpth0t64_1.8-3_amd64.deb' libnpth0t64_1.8-3_amd64.deb 23248 MD5Sum:b4b8799e53138b6d860f78e5b57cdf04
+'http://deb.debian.org/debian/pool/main/g/gnupg2/dirmngr_2.4.7-21%2bdeb13u1%2bb5_amd64.deb' dirmngr_2.4.7-21+deb13u1+b5_amd64.deb 383892 MD5Sum:23dc5d22da3cd1aaeace4b755374606c
+'http://deb.debian.org/debian/pool/main/g/gnupg2/gnupg-l10n_2.4.7-21%2bdeb13u1_all.deb' gnupg-l10n_2.4.7-21+deb13u1_all.deb 748620 MD5Sum:d6916f3a15c7ff13faacf22effe2f806
+'http://deb.debian.org/debian/pool/main/g/gnupg2/gpg_2.4.7-21%2bdeb13u1%2bb5_amd64.deb' gpg_2.4.7-21+deb13u1+b5_amd64.deb 636212 MD5Sum:6beac91b3dc64c703fab9cde63a81ecb
+'http://deb.debian.org/debian/pool/main/p/pinentry/pinentry-curses_1.3.1-2_amd64.deb' pinentry-curses_1.3.1-2_amd64.deb 86388 MD5Sum:ee9c1be603c92f77ac0f735154d013de
+'http://deb.debian.org/debian/pool/main/g/gnupg2/gpg-agent_2.4.7-21%2bdeb13u1%2bb5_amd64.deb' gpg-agent_2.4.7-21+deb13u1+b5_amd64.deb 271000 MD5Sum:737fbf02be327c55998ef05e31a0956f
+'http://deb.debian.org/debian/pool/main/g/gnupg2/gpgsm_2.4.7-21%2bdeb13u1%2bb5_amd64.deb' gpgsm_2.4.7-21+deb13u1+b5_amd64.deb 275832 MD5Sum:5fc539253456c4adf99372d04323c2b9
+'http://deb.debian.org/debian/pool/main/g/gnupg2/gnupg_2.4.7-21%2bdeb13u1_all.deb' gnupg_2.4.7-21+deb13u1_all.deb 417112 MD5Sum:e82a3393bd5bfe5db1fc9b3920c39609
+'http://deb.debian.org/debian/pool/main/g/gpgme1.0/libgpgme11t64_1.24.2-3_amd64.deb' libgpgme11t64_1.24.2-3_amd64.deb 345612 MD5Sum:0e26d3e34af7581bda9fd6086fd29cc7
+'http://deb.debian.org/debian/pool/main/g/gpgme1.0/libgpgmepp6t64_1.24.2-3_amd64.deb' libgpgmepp6t64_1.24.2-3_amd64.deb 340548 MD5Sum:9b6067de043f9224848364739828216b
+'http://deb.debian.org/debian/pool/main/g/graphite2/libgraphite2-3_1.3.14-2%2bdeb13u1_amd64.deb' libgraphite2-3_1.3.14-2+deb13u1_amd64.deb 75172 MD5Sum:88afc62ee0e94eedec7c371d167f596a
+'http://deb.debian.org/debian/pool/main/libd/libdrm/libdrm-common_2.4.124-2_all.deb' libdrm-common_2.4.124-2_all.deb 8288 MD5Sum:d88988b4eefb036b42c8e3fa8afa74b6
+'http://deb.debian.org/debian/pool/main/libd/libdrm/libdrm2_2.4.124-2_amd64.deb' libdrm2_2.4.124-2_amd64.deb 39032 MD5Sum:f5b2af6ff63fe9260f7765a20920c3db
+'http://deb.debian.org/debian/pool/main/libc/libcap2/libcap2-bin_2.75-10%2bdeb13u1%2bb3_amd64.deb' libcap2-bin_1%3a2.75-10+deb13u1+b3_amd64.deb 36456 MD5Sum:b9a02f269f64c920ff253a6313d3888e
+'http://deb.debian.org/debian/pool/main/g/gstreamer1.0/libgstreamer1.0-0_1.26.2-2_amd64.deb' libgstreamer1.0-0_1.26.2-2_amd64.deb 1421116 MD5Sum:e3b03b6b5cbb0a61ec6f9de077209a16
+'http://deb.debian.org/debian/pool/main/o/orc/liborc-0.4-0t64_0.4.41-1_amd64.deb' liborc-0.4-0t64_1%3a0.4.41-1_amd64.deb 189604 MD5Sum:eb8cb73a7da1c4476fb28830c1e1c627
+'http://deb.debian.org/debian/pool/main/i/iso-codes/iso-codes_4.18.0-1_all.deb' iso-codes_4.18.0-1_all.deb 3124584 MD5Sum:303b4e8d876b70d40710f602784d4fc9
+'http://deb.debian.org/debian-security/pool/updates/main/g/gst-plugins-base1.0/libgstreamer-plugins-base1.0-0_1.26.2-1%2bdeb13u2_amd64.deb' libgstreamer-plugins-base1.0-0_1.26.2-1+deb13u2_amd64.deb 996672 
+'http://deb.debian.org/debian/pool/main/h/harfbuzz/libharfbuzz0b_10.2.0-1%2bdeb13u1_amd64.deb' libharfbuzz0b_10.2.0-1+deb13u1_amd64.deb 478952 MD5Sum:322bb1f99d1f8c25a0a5e1092d10ad85
+'http://deb.debian.org/debian/pool/main/h/harfbuzz/libharfbuzz-icu0_10.2.0-1%2bdeb13u1_amd64.deb' libharfbuzz-icu0_10.2.0-1+deb13u1_amd64.deb 15452 MD5Sum:fc8494eb43ae921fadf6b09296e0bc23
+'http://deb.debian.org/debian/pool/main/h/hunspell/libhunspell-1.7-0_1.7.2%2breally1.7.2-10%2bb4_amd64.deb' libhunspell-1.7-0_1.7.2+really1.7.2-10+b4_amd64.deb 236980 MD5Sum:d597b0f23a9c65fd2e441bd9fc619722
+'http://deb.debian.org/debian/pool/main/h/hyphen/libhyphen0_2.8.8-7%2bb2_amd64.deb' libhyphen0_2.8.8-7+b2_amd64.deb 30664 MD5Sum:11c82a753289306e7a2956a51002eebd
+'http://deb.debian.org/debian/pool/main/x/xorg/x11-common_7.7%2b24%2bdeb13u1_all.deb' x11-common_1%3a7.7+24+deb13u1_all.deb 216864 MD5Sum:42a54bbde764cb159b09a596ce8ac685
+'http://deb.debian.org/debian/pool/main/libi/libice/libice6_1.1.1-1_amd64.deb' libice6_2%3a1.1.1-1_amd64.deb 65376 MD5Sum:4505f32fea598b20a8cb5adadd0c49f3
+'http://deb.debian.org/debian/pool/main/libj/libjpeg-turbo/libjpeg62-turbo_2.1.5-4_amd64.deb' libjpeg62-turbo_1%3a2.1.5-4_amd64.deb 168152 MD5Sum:529794778276370a5b4830dbd8481747
+'http://deb.debian.org/debian/pool/main/l/lcms2/liblcms2-2_2.16-2%2bdeb13u2_amd64.deb' liblcms2-2_2.16-2+deb13u2_amd64.deb 160264 MD5Sum:263113687b91aafa4e934fa16d91291b
+'http://deb.debian.org/debian/pool/main/m/mythes/libmythes-1.2-0_1.2.5-1%2bb2_amd64.deb' libmythes-1.2-0_2%3a1.2.5-1+b2_amd64.deb 10824 MD5Sum:42c5c00f2d493cea3d16801658f4722e
+'http://deb.debian.org/debian/pool/main/n/nspr/libnspr4_4.36-1_amd64.deb' libnspr4_2%3a4.36-1_amd64.deb 109800 MD5Sum:dc825d7a7868119890f38608de1b5e21
+'http://deb.debian.org/debian-security/pool/updates/main/n/nss/libnss3_3.110-1%2bdeb13u5_amd64.deb' libnss3_2%3a3.110-1+deb13u5_amd64.deb 1392784 
+'http://deb.debian.org/debian/pool/main/libn/libnumbertext/libnumbertext-1.0-0_1.0.11-4%2bb2_amd64.deb' libnumbertext-1.0-0_1.0.11-4+b2_amd64.deb 109064 MD5Sum:f56f37b379214e09a2ed7dc4f682e1e9
+'http://deb.debian.org/debian/pool/main/o/openjpeg2/libopenjp2-7_2.5.3-2.1%7edeb13u2_amd64.deb' libopenjp2-7_2.5.3-2.1~deb13u2_amd64.deb 204616 MD5Sum:07e72f2421f5a7f6692e7ca04b879709
+'http://deb.debian.org/debian/pool/main/b/boost1.83/libboost-iostreams1.83.0_1.83.0-4.2_amd64.deb' libboost-iostreams1.83.0_1.83.0-4.2_amd64.deb 253636 MD5Sum:6a76a396ba787f779edc9101b5c7c82c
+'http://deb.debian.org/debian/pool/main/libo/liborcus/liborcus-parser-0.18-0_0.19.2-6%2bb1_amd64.deb' liborcus-parser-0.18-0_0.19.2-6+b1_amd64.deb 116132 MD5Sum:1f8651df136a6b0da56538d79771cb66
+'http://deb.debian.org/debian/pool/main/libo/liborcus/liborcus-0.18-0_0.19.2-6%2bb1_amd64.deb' liborcus-0.18-0_0.19.2-6+b1_amd64.deb 432096 MD5Sum:0803ae0f5fe1a79d42cc91d56df8defe
+'http://deb.debian.org/debian/pool/main/n/ngtcp2/libngtcp2-16_1.11.0-1%2bdeb13u1_amd64.deb' libngtcp2-16_1.11.0-1+deb13u1_amd64.deb 131904 MD5Sum:73c7dc70b69796219facc3d77a092303
+'http://deb.debian.org/debian/pool/main/n/ngtcp2/libngtcp2-crypto-gnutls8_1.11.0-1%2bdeb13u1_amd64.deb' libngtcp2-crypto-gnutls8_1.11.0-1+deb13u1_amd64.deb 29524 MD5Sum:085da7b6511e5afdbbd1b33f59054431
+'http://deb.debian.org/debian-security/pool/updates/main/c/curl/libcurl3t64-gnutls_8.14.1-2%2bdeb13u7_amd64.deb' libcurl3t64-gnutls_8.14.1-2+deb13u7_amd64.deb 384636 
+'http://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.23-2_amd64.deb' libdeflate0_1.23-2_amd64.deb 47344 MD5Sum:7c4b5c0d85726d2d9475d48d3587c775
+'http://deb.debian.org/debian/pool/main/j/jbigkit/libjbig0_2.1-6.1%2bb2_amd64.deb' libjbig0_2.1-6.1+b2_amd64.deb 32116 MD5Sum:590134f899b900c7c9f8f87cf750ea63
+'http://deb.debian.org/debian/pool/main/l/lerc/liblerc4_4.0.0%2bds-5_amd64.deb' liblerc4_4.0.0+ds-5_amd64.deb 182976 MD5Sum:8c5933a75125eed15b466c16bf201bfa
+'http://deb.debian.org/debian/pool/main/libw/libwebp/libsharpyuv0_1.5.0-0.1_amd64.deb' libsharpyuv0_1.5.0-0.1_amd64.deb 115612 MD5Sum:438d9fd296a1102dfa7f001641d8857a
+'http://deb.debian.org/debian/pool/main/libw/libwebp/libwebp7_1.5.0-0.1_amd64.deb' libwebp7_1.5.0-0.1_amd64.deb 317856 MD5Sum:bf682e1e438b4927c3807cad4ca6c1a9
+'http://deb.debian.org/debian/pool/main/t/tiff/libtiff6_4.7.0-3%2bdeb13u3_amd64.deb' libtiff6_4.7.0-3+deb13u3_amd64.deb 345492 MD5Sum:22c223cc85d0ec5c73daf59cf1a9b928
+'http://deb.debian.org/debian/pool/main/p/poppler/libpoppler147_25.03.0-5%2bdeb13u4_amd64.deb' libpoppler147_25.03.0-5+deb13u4_amd64.deb 2036064 MD5Sum:85a124f7fd20122d5eb5f2a30a75a051
+'http://deb.debian.org/debian/pool/main/libx/libxslt/libxslt1.1_1.1.35-1.2%2bdeb13u3_amd64.deb' libxslt1.1_1.1.35-1.2+deb13u3_amd64.deb 233128 MD5Sum:b51d6b912a7c65c7a0d7eda2cffa7881
+'http://deb.debian.org/debian/pool/main/y/yajl/libyajl2_2.1.0-5%2bb2_amd64.deb' libyajl2_2.1.0-5+b2_amd64.deb 23340 MD5Sum:673d40591d089485358604ae174ef5d2
+'http://deb.debian.org/debian/pool/main/r/raptor2/libraptor2-0_2.0.16-6_amd64.deb' libraptor2-0_2.0.16-6_amd64.deb 176844 MD5Sum:14912d436fc1f2d174a3bd37050e140d
+'http://deb.debian.org/debian/pool/main/libt/libtool/libltdl7_2.5.4-4_amd64.deb' libltdl7_2.5.4-4_amd64.deb 415648 MD5Sum:74f1031b3bb67ba2d0395689fb05d7b0
+'http://deb.debian.org/debian/pool/main/m/mhash/libmhash2_0.9.9.9-10_amd64.deb' libmhash2_0.9.9.9-10_amd64.deb 92436 MD5Sum:4aaa2d6d74f57621aaf3d7f48a4d3909
+'http://deb.debian.org/debian/pool/main/r/rasqal/librasqal3t64_0.9.33-2.1%2bb2_amd64.deb' librasqal3t64_0.9.33-2.1+b2_amd64.deb 190772 MD5Sum:9e30dc83e22f685e4182c1f43935bfa4
+'http://deb.debian.org/debian/pool/main/r/redland/librdf0t64_1.0.17-4%2bb1_amd64.deb' librdf0t64_1.0.17-4+b1_amd64.deb 106632 MD5Sum:d25c79bce174ba519c3cdd85383c32fc
+'http://deb.debian.org/debian/pool/main/libr/librevenge/librevenge-0.0-0_0.0.5-3%2bb2_amd64.deb' librevenge-0.0-0_0.0.5-3+b2_amd64.deb 295176 MD5Sum:60d84535a2ed2d3536f6c85a0637b242
+'http://deb.debian.org/debian/pool/main/libs/libsm/libsm6_1.2.6-1_amd64.deb' libsm6_2%3a1.2.6-1_amd64.deb 37264 MD5Sum:1c06ea44170b1e8ced12ea23d9c89d5c
+'http://deb.debian.org/debian/pool/main/libx/libx11/libx11-xcb1_1.8.12-1_amd64.deb' libx11-xcb1_2%3a1.8.12-1_amd64.deb 247128 MD5Sum:4b35848e6933d3c1dcde949ef8c070b4
+'http://deb.debian.org/debian/pool/main/libx/libxinerama/libxinerama1_1.1.4-3%2bb4_amd64.deb' libxinerama1_2%3a1.1.4-3+b4_amd64.deb 15992 MD5Sum:d4db0cfb78b339e0e43fff74b16d67f1
+'http://deb.debian.org/debian/pool/main/x/xmlsec1/libxmlsec1t64_1.2.41-1%2bb1_amd64.deb' libxmlsec1t64_1.2.41-1+b1_amd64.deb 154912 MD5Sum:beb0b1bd65938273346bf404e2a65665
+'http://deb.debian.org/debian/pool/main/x/xmlsec1/libxmlsec1t64-nss_1.2.41-1%2bb1_amd64.deb' libxmlsec1t64-nss_1.2.41-1+b1_amd64.deb 65980 MD5Sum:4b6e869563e745bbe93dc558f14896ec
+'http://deb.debian.org/debian/pool/main/libx/libxrandr/libxrandr2_1.5.4-1%2bb3_amd64.deb' libxrandr2_2%3a1.5.4-1+b3_amd64.deb 36312 MD5Sum:8e8011a0428fa68750d3eab1673066ac
+'http://deb.debian.org/debian/pool/main/z/zxcvbn-c/libzxcvbn0_2.5%2bdfsg-2%2bb2_amd64.deb' libzxcvbn0_2.5+dfsg-2+b2_amd64.deb 859604 MD5Sum:1b6a112c9da303c40d98160a26f63140
+'http://deb.debian.org/debian/pool/main/z/zxing-cpp/libzxing3_2.3.0-4_amd64.deb' libzxing3_2.3.0-4_amd64.deb 606500 MD5Sum:16e4a2e346daa8e0f6bef29287b7d160
+'http://deb.debian.org/debian-security/pool/updates/main/libr/libreoffice/libreoffice-core_25.2.3-2%2bdeb13u12_amd64.deb' libreoffice-core_4%3a25.2.3-2+deb13u12_amd64.deb 32166620 
+'http://deb.debian.org/debian-security/pool/updates/main/libr/libreoffice/libreoffice-base-core_25.2.3-2%2bdeb13u12_amd64.deb' libreoffice-base-core_4%3a25.2.3-2+deb13u12_amd64.deb 801684 
+'http://deb.debian.org/debian-security/pool/updates/main/libr/libreoffice/libreoffice-uiconfig-writer_25.2.3-2%2bdeb13u12_all.deb' libreoffice-uiconfig-writer_4%3a25.2.3-2+deb13u12_all.deb 302496 
+'http://deb.debian.org/debian/pool/main/liba/libabw/libabw-0.1-1_0.1.3-1%2bb2_amd64.deb' libabw-0.1-1_0.1.3-1+b2_amd64.deb 123632 MD5Sum:ea5bc3b81a7c7365979dca93bdb624b0
+'http://deb.debian.org/debian/pool/main/libe/libe-book/libe-book-0.1-1_0.1.3-2%2bb4_amd64.deb' libe-book-0.1-1_0.1.3-2+b4_amd64.deb 205264 MD5Sum:3b3925f96f6e092472eb95f0375a2155
+'http://deb.debian.org/debian/pool/main/libe/libepubgen/libepubgen-0.1-1_0.1.1-1%2bb2_amd64.deb' libepubgen-0.1-1_0.1.1-1+b2_amd64.deb 156140 MD5Sum:8adabd6424f6e36e9e417753bf6d29db
+'http://deb.debian.org/debian/pool/main/libe/libetonyek/libetonyek-0.1-1_0.1.12-1_amd64.deb' libetonyek-0.1-1_0.1.12-1_amd64.deb 840380 MD5Sum:7e53034b29d76582cb9d040c9bba6b78
+'http://deb.debian.org/debian/pool/main/libm/libmwaw/libmwaw-0.3-3_0.3.22-1%2bb2_amd64.deb' libmwaw-0.3-3_0.3.22-1+b2_amd64.deb 2839816 MD5Sum:71d1a77020123760a77cec0d179e007e
+'http://deb.debian.org/debian/pool/main/libo/libodfgen/libodfgen-0.1-1_0.1.8-2%2bb2_amd64.deb' libodfgen-0.1-1_0.1.8-2+b2_amd64.deb 312584 MD5Sum:918a4451e190d0d6424d971ff0b11f15
+'http://deb.debian.org/debian/pool/main/libs/libstaroffice/libstaroffice-0.0-0_0.0.7-1%2bb2_amd64.deb' libstaroffice-0.0-0_0.0.7-1+b2_amd64.deb 735280 MD5Sum:07f38264d533a50a661922a12b155446
+'http://deb.debian.org/debian/pool/main/libw/libwpd/libwpd-0.10-10_0.10.3-2%2bb2_amd64.deb' libwpd-0.10-10_0.10.3-2+b2_amd64.deb 262988 MD5Sum:5aa8a40e28397e15072ed514c62274af
+'http://deb.debian.org/debian/pool/main/libw/libwpg/libwpg-0.3-3_0.3.4-3%2bb2_amd64.deb' libwpg-0.3-3_0.3.4-3+b2_amd64.deb 81328 MD5Sum:72d0a207c906bec7bd1825a94143cfe9
+'http://deb.debian.org/debian/pool/main/libw/libwps/libwps-0.4-4_0.4.14-2%2bb2_amd64.deb' libwps-0.4-4_0.4.14-2+b2_amd64.deb 912788 MD5Sum:53a7666dd5ad997bdc5ace4115540579
+'http://deb.debian.org/debian-security/pool/updates/main/libr/libreoffice/libreoffice-writer_25.2.3-2%2bdeb13u12_amd64.deb' libreoffice-writer_4%3a25.2.3-2+deb13u12_amd64.deb 9853516 
+'http://deb.debian.org/debian/pool/main/f/fonts-crosextra-carlito/fonts-crosextra-carlito_20230309-2_all.deb' fonts-crosextra-carlito_20230309-2_all.deb 741584 MD5Sum:ec67307acdbee376678df4b1a99c5e18

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Khóa học · Không gian học tập</title>
+
+
+
+<link rel="stylesheet" href="/lms.css">
+</head>
+<body>
+<header class="top"><a class="brand" href="/"><span class="logo" aria-hidden="true">✳</span><span>Secure LTI<small>PHÒNG THỬ NGHIỆM HỌC LIỆU</small></span></a>
+</header>
+<main class="container">
+<div class="signin">
+    <section class="hero welcome editorial-cover">
+        <div class="editorial-copy">
+        <span class="eyebrow">HỌC LIỆU TƯƠNG TÁC / LTI 1.3</span>
+        <h1>Thử bài học.<br><em>Kiểm chứng kết quả.</em></h1>
+        <p>Mở bài từ dịch vụ H5P Hosting, hoàn thành hoạt động và kiểm tra điểm trả về trong sổ điểm.</p>
+        <a class="hero-link" href="#workflow">Xem quy trình kiểm thử ↓</a>
+        </div>
+    </section>
+    <section id="login" class="card login"><span class="eyebrow">KHÔNG GIAN LÀM VIỆC</span><h2>Đăng nhập</h2><p>Sử dụng tài khoản do quản trị viên cấp.</p>
+    <form method="post" action="/login" class="fields"><input type="hidden" name="_token" value="" autocomplete="off">        <label>Email<input name="email" type="email" value="" autocomplete="username" required></label>
+        <label>Mật khẩu<input name="password" type="password" autocomplete="current-password" required></label>
+        <button>Đăng nhập</button>
+    </form></section>
+</div>
+<section id="workflow" class="workflow" aria-labelledby="workflow-title">
+    <h2 id="workflow-title">Từ bài H5P đến sổ điểm</h2>
+    <ol class="steps">
+        <li><h3>Kết nối công cụ</h3><p>Quản trị viên đăng ký dịch vụ H5P Hosting qua LTI 1.3.</p></li>
+        <li><h3>Mở và làm bài</h3><p>Giáo viên xuất bản hoạt động. Học viên mở bài từ khóa học.</p></li>
+        <li><h3>Đối chiếu điểm</h3><p>Giáo viên xem điểm công cụ gửi về qua AGS trong sổ điểm.</p></li>
+    </ol>
+</section>
+
+</main>
+<div class="sunset-stripe" aria-hidden="true"></div>
+<footer class="site-footer"><a href="/">Secure LTI</a><span>H5P Hosting · LTI 1.3</span></footer>
+</body>
+</html>

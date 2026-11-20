@@ -1,0 +1,60 @@
+name: secure-lti
+
+services:
+  app:
+    build: .
+    volumes:
+      - ../source:/var/www/app
+      - php_vendor:/var/www/app/vendor
+    environment:
+      APP_URL: ${APP_URL:?Run bash setup.sh first}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_LOCALE: vi
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
+      SESSION_SAME_SITE: ${SESSION_SAME_SITE:-lax}
+      SESSION_HTTP_ONLY: "true"
+      LOG_LEVEL: warning
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1,172.16.0.0/12}
+      HASH_DRIVER: argon2id
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: lti
+      DB_USERNAME: lti
+      DB_PASSWORD: ${DB_PASSWORD:?Run bash setup.sh first}
+    depends_on:
+      db:
+        condition: service_healthy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-9000}:80"
+    volumes:
+      - ../source/public:/var/www/app/public:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: lti
+      POSTGRES_USER: lti
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Run bash setup.sh first}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "lti", "-d", "lti"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  php_vendor:
+  database:
