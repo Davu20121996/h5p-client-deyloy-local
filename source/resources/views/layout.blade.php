@@ -58,7 +58,7 @@
 </main>
 @auth</div>@endauth
 <div class="sunset-stripe" aria-hidden="true"></div>
-<footer class="site-footer"><a href="/">Secure LTI</a><span>H5P Hosting · LTI 1.3</span></footer>
+<footer class="site-footer"><a href="/">LTI Tool</a><span>H5P Hosting · LTI 1.3</span></footer>
 @auth
 <script defer src="/lms-dialog.js?v={{ filemtime(public_path('lms-dialog.js')) }}"></script>
 @endauth
