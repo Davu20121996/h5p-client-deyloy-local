@@ -15,7 +15,7 @@ x-app: &app
   environment: &environment
     APP_NAME: Secure LTI
     APP_ENV: production
-    APP_DEBUG: "false"
+    APP_DEBUG: "true"
     APP_KEY: ${APP_KEY:?Set APP_KEY in Dockhand}
     APP_URL: ${APP_URL:?Set APP_URL in Dockhand}
     APP_LOCALE: vi
