@@ -88,6 +88,7 @@
 @foreach($tools as $tool)<tr><td>{{ $tool->name }}</td><td>{{ $tool->client_id }}</td><td>{{ $tool->deployment_id }}</td><td>
 @unless($platform)
 @php($modalId = 'tool-edit-'.$tool->id)
+<a class="link" href="/admin/tools/{{ $tool->id }}/check">Kiểm tra cấu hình</a>
 <x-modal :id="$modalId" title="Sửa công cụ LTI">
 <form method="post" action="/admin/tools/{{ $tool->id }}" class="fields">
 @csrf @method('PUT')
@@ -112,13 +113,32 @@
 <label>Vai trò<select name="role"><option value="student">Học viên</option><option value="teacher">Giáo viên</option></select></label>
 <label>Mật khẩu<input name="password" type="password" minlength="12" autocomplete="new-password" required></label>
 <button>Tạo tài khoản</button></form></x-modal>
+<x-modal id="users-import" title="Nhập học viên từ CSV">
+<form method="post" action="/admin/users/import" enctype="multipart/form-data" class="fields">@csrf
+<p>CSV UTF-8, tối đa 500 học viên. Dòng đầu: <code>name,email,password</code>. Mỗi học viên có mật khẩu ban đầu riêng từ 12 ký tự. Email trùng hoặc dòng sai sẽ hủy toàn bộ lượt nhập.</p>
+<label>File CSV<input type="file" name="csv" accept=".csv,text/csv" required></label><button>Kiểm tra và nhập học viên</button></form>
+</x-modal>
 @endunless
 </div>
 <h2 class="section-title">Danh sách tài khoản</h2>
 @forelse($userGroups as $members)
 <h3 class="section-title">{{ $members->first()->tenant_name ?? 'Tài khoản không thuộc tổ chức' }}</h3>
 <section class="card table-wrap"><table><thead><tr><th>Tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th></tr></thead><tbody>
-@foreach($members as $user)<tr><td>{{ $user->name }}</td><td>{{ $user->email }}</td><td>
+@foreach($members as $user)<tr><td>{{ $user->name }}
+@if(!$platform && in_array($user->role, ['teacher', 'student'], true))
+<x-modal :id="'user-edit-'.$user->id" title="Sửa hồ sơ">
+<form method="post" action="/admin/users/{{ $user->id }}" class="fields">@csrf @method('PUT')
+<label>Họ tên<input name="name" value="{{ $user->name }}" required maxlength="255"></label>
+<label>Email<input name="email" type="email" value="{{ $user->email }}" required maxlength="255"></label><button>Lưu hồ sơ</button></form>
+</x-modal>
+<x-modal :id="'user-password-'.$user->id" title="Đặt lại mật khẩu">
+<form method="post" action="/admin/users/{{ $user->id }}/password" class="fields">@csrf
+<p>Đặt lại mật khẩu cho {{ $user->name }} và thu hồi các phiên đăng nhập cũ. Gửi mật khẩu mới cho người nhận qua kênh riêng.</p>
+<label>Mật khẩu mới<input type="password" name="password" minlength="12" maxlength="1024" autocomplete="new-password" required></label>
+<label>Nhập lại mật khẩu<input type="password" name="password_confirmation" minlength="12" maxlength="1024" autocomplete="new-password" required></label><button>Đặt lại và thu hồi phiên</button></form>
+</x-modal>
+@endif
+</td><td>{{ $user->email }}</td><td>
 @if($platform || in_array($user->role, ['admin', 'tenant_admin'], true))
 {{ $roles->get($user->role, $user->role) }}
 @else

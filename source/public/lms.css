@@ -324,3 +324,7 @@ body.lesson-expanded { overflow: hidden; }
 }
 
 .lesson-player .h5p-lesson[hidden] { display: none; }
+/* Learning management forms use the same controls as the course workspace. */
+.member-picker { max-height: 24rem; overflow-y: auto; display: grid; gap: .75rem; padding: .5rem; }
+.report-filters { max-width: 52rem; }
+.lesson-instructions { white-space: pre-wrap; overflow-wrap: anywhere; }

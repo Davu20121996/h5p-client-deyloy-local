@@ -4,6 +4,8 @@
             <path d="m2 9 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v7"/>
             @break
         @case('users')
+        @case('profile')
+        @case('classrooms')
         @case('enrollment')
             <circle cx="9" cy="7" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m1-16a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>
             @break
@@ -23,6 +25,7 @@
             <rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>
             @break
         @case('grades')
+        @case('reports')
             <path d="M4 4v16h16M9 16v-4m5 4V8m5 8v-6"/>
             @break
         @case('settings')

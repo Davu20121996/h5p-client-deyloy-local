@@ -13,6 +13,9 @@
 @auth
     @php
         $links = ['/' => 'Khóa học'];
+        if (in_array(auth()->user()->role, ['admin', 'tenant_admin', 'teacher'], true)) {
+            $links['/reports'] = 'Báo cáo';
+        }
         if (!empty($course)) {
             $base = '/courses/'.$course->id;
             $links += [$base.'/activities' => 'Hoạt động H5P', $base.'/grades' => 'Sổ điểm'];
@@ -21,10 +24,14 @@
             }
         }
         if (in_array(auth()->user()->role, ['admin', 'tenant_admin'], true)) {
+            if (auth()->user()->role === 'tenant_admin') {
+                $links['/classrooms'] = 'Lớp học';
+            }
             $links['/admin/tenants'] = 'Tổ chức';
             $links += ['/admin/users' => 'Tài khoản', '/admin/tools' => 'Công cụ LTI', '/admin/logs' => 'Nhật ký LTI'];
         }
         $links['/account/password'] = 'Đổi mật khẩu';
+        $links['/account/profile'] = 'Hồ sơ cá nhân';
         $current = '/'.request()->path();
         $current = match ($current) {
             '//' => '/',

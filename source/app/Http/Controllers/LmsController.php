@@ -2,12 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ActivityAssignments;
+use App\Services\Gradebook;
+use App\Services\LearningAccess;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class LmsController extends Controller
 {
@@ -19,7 +26,7 @@ class LmsController extends Controller
         abort_if(RateLimiter::tooManyAttempts($key, 5), 429);
         RateLimiter::hit($key, 60);
         if (! Auth::attempt($credentials + ['locked' => false])) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['email' => 'Thông tin đăng nhập không hợp lệ.']);
+            throw ValidationException::withMessages(['email' => 'Thông tin đăng nhập không hợp lệ.']);
         }
         RateLimiter::clear($key);
         $request->session()->regenerate();
@@ -39,9 +46,9 @@ class LmsController extends Controller
     public static function courses()
     {
         $user = Auth::user();
-        abort_if(! $user || $user->locked || ($user->role !== 'admin' && !$user->tenant_id), 403);
+        abort_if(! $user || $user->locked || ($user->role !== 'admin' && ! $user->tenant_id), 403);
 
-        return DB::table('courses')->when($user->role !== 'admin', fn ($query) => $query->where('tenant_id', $user->tenant_id))->when($user->role === 'teacher', fn ($query) => $query->where('teacher_id', $user->id))
+        return DB::table('courses')->when($user->role !== 'admin', fn ($query) => $query->where('tenant_id', $user->tenant_id))->when($user->role === 'teacher', fn ($query) => $query->where(fn ($q) => $q->where('teacher_id', $user->id)->orWhereIn('id', DB::table('course_teachers')->where('user_id', $user->id)->select('course_id'))))
             ->when($user->role === 'student', fn ($query) => $query->whereIn('id', DB::table('enrollments')->where('user_id', $user->id)->select('course_id')));
     }
 
@@ -69,7 +76,8 @@ class LmsController extends Controller
         DB::transaction(function () use ($id, $data) {
             $user = DB::table('users')->where('id', $id)->where('tenant_id', Auth::user()->tenant_id)->lockForUpdate()->firstOrFail();
             abort_unless(in_array($user->role, ['teacher', 'student'], true), 403);
-            abort_if($data['role'] === 'student' && DB::table('courses')->where('teacher_id', $id)->exists(), 422, 'Tài khoản đang phụ trách khóa học.');
+            abort_if($data['role'] === 'student' && (DB::table('courses')->where('teacher_id', $id)->exists() || DB::table('course_teachers')->where('user_id', $id)->exists()), 422, 'Tài khoản đang phụ trách hoặc đồng giảng khóa học.');
+            abort_if($data['role'] === 'teacher' && (DB::table('enrollments')->where('user_id', $id)->exists() || DB::table('classroom_members')->where('user_id', $id)->exists()), 422, 'Hãy thu hồi ghi danh và thành viên lớp trước khi đổi học viên thành giáo viên.');
             DB::table('users')->where('id', $id)->update($data + ['updated_at' => now()]);
             DB::table('audit_logs')->insert(['event' => 'user.role_changed', 'user_id' => Auth::id(), 'resource_id' => $id]);
         });
@@ -94,10 +102,20 @@ class LmsController extends Controller
         $student = Auth::user()->role === 'student';
         abort_if($student && in_array($screen, ['enrollment', 'settings'], true), 403);
 
+        $filters = request()->validate(['classroom_id' => 'nullable|integer', 'activity_id' => 'nullable|integer', 'history' => 'sometimes|boolean', 'result_status' => 'nullable|in:all,not_reported,in_progress,completed']);
+        if (! empty($filters['classroom_id'])) {
+            abort_if($student, 403);
+            DB::table('course_classrooms')->join('classrooms', 'classrooms.id', '=', 'course_classrooms.classroom_id')->where('course_id', $id)->where('classroom_id', $filters['classroom_id'])->where('tenant_id', $course->tenant_id)->firstOrFail();
+        }
+        if (! empty($filters['activity_id'])) {
+            DB::table('activities')->where('course_id', $id)->where('id', $filters['activity_id'])->firstOrFail();
+        }
+        $history = $screen === 'grades' && request()->boolean('history') ? Gradebook::records($id, $filters['classroom_id'] ?? null, $filters['activity_id'] ?? null)->get() : collect();
+
         return $this->screen('lms', [
             'course' => $course,
             'screen' => $screen,
-            'activities' => !in_array($screen, ['activities', 'enrollment'], true) ? collect() : DB::table('activities')->where('course_id', $id)->when($student, fn ($query) => $query->where('published', true)->whereIn('id', self::assignedActivities(Auth::id())))->get(),
+            'activities' => ! in_array($screen, ['activities', 'enrollment', 'grades'], true) ? collect() : DB::table('activities')->where('course_id', $id)->when($student, fn ($query) => $query->where('published', true)->whereNull('archived_at')->whereIn('id', self::assignedActivities(Auth::id())))->orderBy('sort_order')->orderBy('id')->get(),
             'learners' => $screen !== 'enrollment' ? collect() : DB::table('enrollments')->join('users', 'users.id', '=', 'enrollments.user_id')->where('course_id', $id)->where('users.role', 'student')->select('users.id', 'users.name', 'users.email')->get(),
             'availableLearners' => $screen === 'enrollment' && in_array(Auth::user()->role, ['teacher', 'tenant_admin'], true)
                 ? DB::table('users')->where('tenant_id', $course->tenant_id)->where('role', 'student')->where('locked', false)
@@ -105,11 +123,14 @@ class LmsController extends Controller
                     ->orderBy('name')->get(['name', 'email'])
                 : collect(),
             'assignments' => $screen !== 'enrollment' ? collect() : DB::table('activity_assignments')->join('activities', 'activities.id', '=', 'activity_assignments.activity_id')->join('users', 'users.id', '=', 'activity_assignments.user_id')->where('activities.course_id', $id)->select('activities.title', 'users.name')->get(),
-            'tools' => $student || $screen !== 'activities' ? collect() : DB::table('lti_registrations')->where('tenant_id', $course->tenant_id)->select('id', 'name')->get(),
-            'grades' => $screen !== 'grades' ? collect() : DB::table('grades')->join('activities', 'activities.id', '=', 'grades.activity_id')->join('users', 'users.id', '=', 'grades.user_id')
-                ->where('course_id', $id)->when($student, fn ($query) => $query->where('grades.user_id', Auth::id())->where('published', true)->whereIn('activities.id', self::assignedActivities(Auth::id())))
-                ->select('users.name', 'activities.title', 'activities.maximum', 'grades.score', 'grades.reported_at')
-                ->orderByDesc('grades.reported_at')->get(),
+            'tools' => $student || $screen !== 'activities' ? collect() : DB::table('lti_registrations')->where('tenant_id', $course->tenant_id)->select('id', 'name', 'deep_link_url')->get(),
+            'grades' => Gradebook::filterStatus(request()->boolean('history') ? $history : ($screen === 'grades' ? Gradebook::overview($id, $filters['classroom_id'] ?? null, $filters['activity_id'] ?? null) : collect()), $filters['result_status'] ?? null),
+            'classrooms' => $student ? collect() : DB::table('classrooms')->where('tenant_id', $course->tenant_id)->orderBy('name')->get(),
+            'attachedClassrooms' => $student ? collect() : DB::table('course_classrooms')->where('course_id', $id)->pluck('classroom_id'),
+            'teachers' => $student ? collect() : DB::table('users')->where('tenant_id', $course->tenant_id)->where('role', 'teacher')->get(['id', 'name', 'locked']),
+            'primaryTeacher' => $student ? null : DB::table('users')->where('id', $course->teacher_id)->where('tenant_id', $course->tenant_id)->first(['name']),
+            'coTeachers' => $student ? collect() : DB::table('course_teachers')->where('course_id', $id)->pluck('user_id'),
+            'assignmentOverrides' => $screen === 'enrollment' ? DB::table('activity_assignment_overrides')->join('activities', 'activities.id', '=', 'activity_assignment_overrides.activity_id')->join('users', 'users.id', '=', 'activity_assignment_overrides.user_id')->where('activities.course_id', $id)->get(['activities.title', 'users.name', 'activity_assignment_overrides.granted']) : collect(),
         ]);
     }
 
@@ -135,7 +156,7 @@ class LmsController extends Controller
         $student = DB::table('users')->where('role', 'student')->where('tenant_id', Auth::user()->tenant_id)
             ->where('locked', false)->where('email', strtolower($data['email']))->first();
         if (! $student) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['email' => 'Không tìm thấy tài khoản học viên.']);
+            throw ValidationException::withMessages(['email' => 'Không tìm thấy tài khoản học viên.']);
         }
         $added = DB::table('enrollments')->insertOrIgnore(['course_id' => $id, 'user_id' => $student->id]);
 
@@ -152,6 +173,8 @@ class LmsController extends Controller
             DB::table('activity_assignments')->where('user_id', $user)
                 ->whereIn('activity_id', DB::table('activities')->where('course_id', $id)->select('id'))
                 ->delete();
+            DB::table('activity_assignment_overrides')->where('user_id', $user)
+                ->whereIn('activity_id', DB::table('activities')->where('course_id', $id)->select('id'))->delete();
         });
 
         return $this->respond(back(), 'Đã thu hồi quyền truy cập khóa học.');
@@ -166,6 +189,7 @@ class LmsController extends Controller
         }
         if ($activity !== null && $request->isMethod('POST')) {
             $request->validate(['published' => 'required|boolean']);
+            abort_if($existing->firstOrFail()->archived_at && $request->boolean('published'), 422, 'Khôi phục bài lưu trữ trước khi xuất bản.');
             $existing->update(['published' => $request->boolean('published')]);
 
             return $this->respond(back(), 'Đã cập nhật trạng thái.');
@@ -174,20 +198,41 @@ class LmsController extends Controller
             'title' => 'required|string|max:255', 'lti_registration_id' => 'required|integer',
             'target_uri' => 'required|url:https|max:2048', 'maximum' => 'required|integer|min:1|max:100000',
             'published' => 'sometimes|boolean',
+            'instructions' => 'nullable|string|max:10000', 'sort_order' => 'sometimes|integer|min:0|max:100000',
+            'opens_at' => 'nullable|date', 'due_at' => 'nullable|date', 'closes_at' => 'nullable|date',
+            'grade_policy' => 'sometimes|in:latest,highest',
         ]);
         $tool = DB::table('lti_registrations')->where('tenant_id', Auth::user()->tenant_id)->where('id', $data['lti_registration_id'])->firstOrFail();
         $toolHost = parse_url($tool->redirect_uri, PHP_URL_HOST);
-        $targetHost = parse_url($data['target_uri'], PHP_URL_HOST);
-        if (strcasecmp($targetHost, $toolHost) !== 0) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+        if (! LearningAccess::origin($data['target_uri']) || LearningAccess::origin($data['target_uri']) !== LearningAccess::origin($tool->redirect_uri)) {
+            throw ValidationException::withMessages([
                 'target_uri' => $toolHost === 'demo.invalid'
                     ? 'H5P Demo chỉ có URL mẫu. Hãy chọn công cụ đã kết nối với H5P Hosting.'
                     : "URL bài H5P phải dùng cùng tên miền với Redirect URI của công cụ ({$toolHost}).",
             ]);
         }
+        foreach (['opens_at', 'due_at', 'closes_at'] as $field) {
+            $data[$field] = empty($data[$field]) ? null : Carbon::parse($data[$field], 'Asia/Ho_Chi_Minh')->utc()->format('Y-m-d H:i:s');
+        }
+        if (($data['opens_at'] && $data['closes_at'] && $data['opens_at'] >= $data['closes_at']) ||
+            ($data['due_at'] && $data['opens_at'] && $data['due_at'] < $data['opens_at']) ||
+            ($data['due_at'] && $data['closes_at'] && $data['due_at'] > $data['closes_at'])) {
+            throw ValidationException::withMessages(['closes_at' => 'Thời gian mở, hạn nộp và đóng phải theo thứ tự.']);
+        }
         $data['published'] = $request->boolean('published');
         if ($activity !== null) {
-            $existing->update($data);
+            DB::transaction(function () use ($existing, $activity, $data) {
+                $old = $existing->lockForUpdate()->firstOrFail();
+                $used = DB::table('grades')->where('activity_id', $activity)->exists() || DB::table('audit_logs')->where('event', 'lti.launch')->where('resource_id', $activity)->exists();
+                if ($used && ($old->lti_registration_id != $data['lti_registration_id'] || $old->target_uri !== $data['target_uri'] || $old->maximum != $data['maximum'])) {
+                    throw ValidationException::withMessages(['target_uri' => 'Bài đã được mở hoặc có điểm. Hãy tạo hoạt động mới để đổi bài, công cụ hoặc thang điểm.']);
+                }
+                abort_if($old->archived_at && $data['published'], 422, 'Khôi phục bài lưu trữ trước khi xuất bản.');
+                if ($old->target_uri !== $data['target_uri'] || $old->lti_registration_id != $data['lti_registration_id']) {
+                    $data['hub_custom'] = null;
+                }
+                $existing->update($data);
+            });
 
             return $this->respond(back(), 'Đã lưu hoạt động.');
         }
@@ -208,17 +253,12 @@ class LmsController extends Controller
         $data = $request->validate([
             'activity_id' => 'required|integer|min:1',
             'user_id' => 'required|integer|min:1',
-            'granted' => 'required|boolean',
+            'granted' => 'required_without:mode|boolean', 'mode' => 'sometimes|in:inherit',
         ]);
         DB::table('activities')->where('course_id', $id)->where('id', $data['activity_id'])->firstOrFail();
         DB::table('enrollments')->join('users', 'users.id', '=', 'enrollments.user_id')
             ->where('course_id', $id)->where('user_id', $data['user_id'])->where('users.role', 'student')->where('users.tenant_id', Auth::user()->tenant_id)->firstOrFail();
-        $assignment = ['activity_id' => $data['activity_id'], 'user_id' => $data['user_id']];
-        if ($data['granted']) {
-            DB::table('activity_assignments')->insertOrIgnore($assignment);
-        } else {
-            DB::table('activity_assignments')->where($assignment)->delete();
-        }
+        ActivityAssignments::individual((int) $data['activity_id'], (int) $data['user_id'], ($data['mode'] ?? null) === 'inherit' ? null : $request->boolean('granted'));
 
         return $this->respond(back(), 'Đã cập nhật quyền làm bài.');
     }
@@ -226,6 +266,9 @@ class LmsController extends Controller
     public function deleteCourse(int $id)
     {
         $this->manage($id);
+        $course = self::courses()->where('id', $id)->firstOrFail();
+        abort_unless(Auth::user()->role === 'tenant_admin' || $course->teacher_id === Auth::id(), 403);
+        abort_if(DB::table('grades')->whereIn('activity_id', DB::table('activities')->where('course_id', $id)->select('id'))->exists(), 422, 'Khóa đã có điểm; không thể xóa lịch sử học tập.');
         DB::table('courses')->where('id', $id)->delete();
 
         return $this->respond(redirect('/'), 'Đã xóa khóa học.');
@@ -234,14 +277,14 @@ class LmsController extends Controller
     public function admin(string $screen = 'users')
     {
         $user = Auth::user();
-        abort_unless(!$user->locked && ($user->role === 'admin' || ($user->role === 'tenant_admin' && $user->tenant_id)), 403);
+        abort_unless(! $user->locked && ($user->role === 'admin' || ($user->role === 'tenant_admin' && $user->tenant_id)), 403);
         $platform = $user->role === 'admin';
 
         return $this->screen('admin', [
             'platform' => $platform,
             'roles' => $screen === 'users' ? DB::table('roles')->pluck('name', 'code') : collect(),
             'tenants' => $screen === 'tenants'
-                ? DB::table('tenants')->when(!$platform, fn ($query) => $query->where('id', $user->tenant_id))->orderBy('name')->get()
+                ? DB::table('tenants')->when(! $platform, fn ($query) => $query->where('id', $user->tenant_id))->orderBy('name')->get()
                 : collect(),
             'tenantUsers' => $platform && $screen === 'tenants'
                 ? DB::table('users')->whereNotNull('tenant_id')->whereIn('role', ['tenant_admin', 'teacher', 'student'])
@@ -250,12 +293,12 @@ class LmsController extends Controller
             'screen' => $screen,
             'userGroups' => $screen !== 'users' ? collect() : DB::table('users')
                 ->leftJoin('tenants', 'tenants.id', '=', 'users.tenant_id')
-                ->when(!$platform, fn ($query) => $query->where('users.tenant_id', $user->tenant_id))
+                ->when(! $platform, fn ($query) => $query->where('users.tenant_id', $user->tenant_id))
                 ->select('users.id', 'users.name', 'users.email', 'users.role', 'users.locked', 'users.tenant_id', 'tenants.name as tenant_name')
                 ->orderBy('tenants.name')->orderBy('users.name')->get()->groupBy('tenant_id'),
             'toolGroups' => $screen !== 'tools' ? collect() : DB::table('lti_registrations as tools')
                 ->leftJoin('tenants', 'tenants.id', '=', 'tools.tenant_id')
-                ->when(!$platform, fn ($query) => $query->where('tools.tenant_id', $user->tenant_id))
+                ->when(! $platform, fn ($query) => $query->where('tools.tenant_id', $user->tenant_id))
                 ->orderBy('tenants.name')->orderBy('tools.name')
                 ->get(['tools.*', 'tenants.name as tenant_name'])->groupBy('tenant_id'),
             'logGroups' => $screen !== 'logs' ? collect() : DB::table('audit_logs as logs')
@@ -264,7 +307,7 @@ class LmsController extends Controller
                     $join->on('member.id', '=', 'logs.resource_id')->where('logs.event', 'tenant.manager_granted');
                 })
                 ->leftJoin('tenants', DB::raw('coalesce(member.tenant_id, actor.tenant_id)'), '=', 'tenants.id')
-                ->when(!$platform, fn ($query) => $query->where('tenants.id', $user->tenant_id))
+                ->when(! $platform, fn ($query) => $query->where('tenants.id', $user->tenant_id))
                 ->latest('logs.id')->limit(20)
                 ->get(['logs.*', 'tenants.id as tenant_id', 'tenants.name as tenant_name'])->groupBy('tenant_id'),
         ]);
@@ -272,12 +315,12 @@ class LmsController extends Controller
 
     public function grantTenantManager(int $tenant, int $user)
     {
-        abort_unless(Auth::user()->role === 'admin' && !Auth::user()->locked, 403);
+        abort_unless(Auth::user()->role === 'admin' && ! Auth::user()->locked, 403);
         DB::transaction(function () use ($tenant, $user) {
             $member = DB::table('users')->where('tenant_id', $tenant)->where('id', $user)
                 ->whereIn('role', ['teacher', 'student', 'tenant_admin'])->lockForUpdate()->firstOrFail();
             if ($member->locked) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'user' => 'Hãy mở khóa tài khoản trước khi cấp quyền quản lý.',
                 ]);
             }
@@ -292,7 +335,7 @@ class LmsController extends Controller
 
     public function createTenant(Request $request)
     {
-        abort_unless(Auth::user()->role === 'admin' && !Auth::user()->locked, 403);
+        abort_unless(Auth::user()->role === 'admin' && ! Auth::user()->locked, 403);
         if (is_string($request->input('email'))) {
             $request->merge(['email' => strtolower($request->input('email'))]);
         }
@@ -324,7 +367,7 @@ class LmsController extends Controller
             $this->requireTenantAdmin();
             $tenant = Auth::user()->tenant_id;
         } else {
-            abort_unless(Auth::user()->role === 'admin' && !Auth::user()->locked, 403);
+            abort_unless(Auth::user()->role === 'admin' && ! Auth::user()->locked, 403);
             DB::table('tenants')->where('id', $tenant)->firstOrFail();
         }
 
@@ -373,7 +416,7 @@ class LmsController extends Controller
     {
         $this->requireTenantAdmin();
         $registration = $id === null ? null : DB::table('lti_registrations')->where('id', $id)->where('tenant_id', Auth::user()->tenant_id)->firstOrFail();
-        $clientId = \Illuminate\Validation\Rule::unique('lti_registrations');
+        $clientId = Rule::unique('lti_registrations');
         if ($registration) {
             $clientId->ignore($registration->id);
         }
@@ -381,11 +424,18 @@ class LmsController extends Controller
             'name' => 'required|string|max:255', 'client_id' => ['required', 'string', 'max:255', $clientId],
             'deployment_id' => 'required|string|max:255', 'login_url' => 'required|url:https|max:2048',
             'redirect_uri' => 'required|url:https|max:2048', 'public_key' => 'required|string|max:8192',
+            'deep_link_url' => 'nullable|url:https|max:2048',
         ]);
+        if (! empty($data['deep_link_url']) && LearningAccess::origin($data['deep_link_url']) !== LearningAccess::origin($data['redirect_uri'])) {
+            throw ValidationException::withMessages(['deep_link_url' => 'URL chọn bài phải cùng origin với Redirect URI của Hub.']);
+        }
+        if ($registration && ($registration->client_id !== $data['client_id'] || $registration->deployment_id !== $data['deployment_id'] || $registration->redirect_uri !== $data['redirect_uri']) && DB::table('activities')->where('lti_registration_id', $id)->exists()) {
+            throw ValidationException::withMessages(['client_id' => 'Kết nối đã được dùng. Tạo kết nối mới nếu đổi định danh hoặc Redirect URI.']);
+        }
         $key = openssl_pkey_get_public($data['public_key']);
         $details = $key ? openssl_pkey_get_details($key) : false;
         if (! $details || $details['type'] !== OPENSSL_KEYTYPE_RSA || $details['bits'] < 2048) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['public_key' => 'Cần khóa công khai RSA từ 2048 bit.']);
+            throw ValidationException::withMessages(['public_key' => 'Cần khóa công khai RSA từ 2048 bit.']);
         }
         $data['public_key'] = $details['key'];
         if ($registration) {
@@ -407,7 +457,7 @@ class LmsController extends Controller
         return view($view, $data);
     }
 
-    private function respond(\Illuminate\Http\RedirectResponse $redirect, ?string $message = null)
+    private function respond(RedirectResponse $redirect, ?string $message = null)
     {
         if (request()->expectsJson()) {
             return response()->json(['message' => $message, 'redirect' => $redirect->getTargetUrl()])

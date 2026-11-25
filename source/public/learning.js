@@ -19,7 +19,8 @@ if (learningPanel) {
         }
     });
     let timer;
-    let active = false;
+    let active = true;
+    let launched = false;
     async function refresh() {
         if (!active) return;
         try {
@@ -37,26 +38,39 @@ if (learningPanel) {
             const maximum = document.createElement('small');
             maximum.textContent = `/ ${result.maximum}`;
             score.append(maximum);
-            learningPanel.dataset.state = result.completed ? 'completed' : 'learning';
-            label.textContent = result.completed ? 'Đã hoàn thành' : 'Đang học';
+            learningPanel.dataset.state = result.completed ? 'completed' : (launched ? 'learning' : 'ready');
+            label.textContent = result.completed ? 'Đã hoàn thành' : (launched ? 'Đang học' : 'Sẵn sàng bắt đầu');
             message.textContent = result.completed
                 ? 'Bạn đã hoàn thành bài học. Kết quả đã được hệ thống ghi nhận.'
-                : 'Bài học đang mở. Hệ thống đang chờ H5P gửi kết quả hoàn thành.';
+                : (launched ? 'Hệ thống đang chờ H5P gửi kết quả hoàn thành.' : 'Chưa có kết quả hoàn thành. Bạn có thể mở bài để học.');
         } catch {
             message.textContent = 'Chưa cập nhật được kết quả. Hệ thống sẽ tự thử lại.';
         } finally {
             if (active) timer = setTimeout(refresh, 5000);
         }
     }
-    learningPanel.querySelector('[data-learning-launch]').addEventListener('submit', () => {
+    function startTracking(embedded) {
         clearTimeout(timer);
         active = true;
-        learningPanel.querySelector('[data-learning-placeholder]').hidden = true;
-        player.querySelector('iframe').hidden = false;
+        launched = true;
+        if (embedded) {
+            learningPanel.querySelector('[data-learning-placeholder]').hidden = true;
+            player.querySelector('iframe').hidden = false;
+        }
         learningPanel.dataset.state = 'learning';
         label.textContent = 'Đang học';
         message.textContent = 'Đang mở bài học. Điểm sẽ tự cập nhật khi có kết quả.';
         timer = setTimeout(refresh, 5000);
+    }
+    learningPanel.querySelector('[data-learning-launch]').addEventListener('submit', () => startTracking(true));
+    learningPanel.querySelector('[data-learning-external]')?.addEventListener('submit', () => startTracking(false));
+    timer = setTimeout(refresh, 0);
+    window.addEventListener('pageshow', () => {
+        if (!active) {
+            active = true;
+            clearTimeout(timer);
+            timer = setTimeout(refresh, 0);
+        }
     });
     window.addEventListener('pagehide', () => { active = false; clearTimeout(timer); });
 }

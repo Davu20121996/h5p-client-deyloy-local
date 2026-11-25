@@ -4,9 +4,10 @@
 <div class="lesson-page" data-learning-status="/courses/{{ $item->course_id }}/activities/{{ $item->id }}/status">
     <a class="back lesson-back" href="/courses/{{ $item->course_id }}">← Trở về khóa học</a>
     <header class="lesson-heading">
-        <div><span class="eyebrow">KHÔNG GIAN HỌC TẬP</span><h1>{{ $item->title }}</h1><p>Học theo nhịp của bạn. Kết quả được cập nhật ngay tại đây.</p></div>
+        <div><span class="eyebrow">KHÔNG GIAN HỌC TẬP</span><h1>{{ $item->title }}</h1><p>Học theo nhịp của bạn. Kết quả được cập nhật khi công cụ gửi về hệ thống.</p></div>
         <span class="lesson-kind">H5P · Tương tác</span>
     </header>
+    @if($item->instructions)<section class="card"><h2>Hướng dẫn</h2><p class="lesson-instructions">{{ $item->instructions }}</p></section>@endif
     <section class="lesson-player" data-learning-player aria-label="Không gian bài học">
         <div class="lesson-toolbar">
             <div class="lesson-player-label"><span class="lesson-dot" aria-hidden="true"></span><span data-learning-label>Sẵn sàng bắt đầu</span></div>
@@ -29,9 +30,10 @@
     </section>
     <section class="lesson-result" aria-label="Kết quả bài học">
         <div class="lesson-result-copy"><span class="eyebrow">TIẾN ĐỘ CỦA BẠN</span><p data-learning-message role="status" aria-live="polite">Sẵn sàng khi bạn muốn bắt đầu.</p></div>
-        <div class="lesson-score"><span>Điểm gần nhất</span><strong data-learning-score>— <small>/ {{ $item->maximum }}</small></strong></div>
+        <div class="lesson-score"><span>{{ $item->grade_policy === 'highest' ? 'Điểm cao nhất' : 'Điểm gần nhất có điểm' }}</span><strong data-learning-score>— <small>/ {{ $item->maximum }}</small></strong></div>
     </section>
-    <details class="lesson-help"><summary>Bài học không hiển thị?</summary><p>Thử mở lại bài từ khóa học hoặc kiểm tra kết nối mạng. Nếu vẫn không hiển thị, hãy liên hệ người quản lý khóa học.</p></details>
+    <details class="lesson-help"><summary>Bài học không hiển thị?</summary><p>Nếu trình duyệt chặn phiên trong khung nhúng, hãy mở bài ở tab mới. Quyền truy cập và thời gian học vẫn được kiểm tra.</p>
+    <form method="post" action="/courses/{{ $item->course_id }}/activities/{{ $item->id }}/launch" target="_blank" rel="noopener" data-learning-external>@csrf<button class="outline">Mở bài ở tab mới</button></form></details>
 </div>
 <script defer src="/learning.js?v={{ filemtime(public_path('learning.js')) }}"></script>
 @endsection

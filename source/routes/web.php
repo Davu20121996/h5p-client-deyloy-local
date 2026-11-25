@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LearningManagementController;
 use App\Http\Controllers\LmsController;
 use App\Http\Controllers\LtiController;
 use Illuminate\Support\Facades\Route;
@@ -7,6 +8,27 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [LmsController::class, 'dashboard'])->middleware('auth.session')->name('login');
 Route::post('/login', [LmsController::class, 'login'])->middleware(['guest', 'throttle:20,1']);
 Route::middleware(['auth', 'auth.session'])->group(function () {
+    Route::get('/account/profile', [LearningManagementController::class, 'profile']);
+    Route::put('/account/profile', [LearningManagementController::class, 'updateProfile'])->middleware('throttle:10,1');
+    Route::get('/reports', [LearningManagementController::class, 'reports']);
+    Route::get('/admin/tools/{tool}/check', [LearningManagementController::class, 'toolDiagnostics'])->whereNumber('tool');
+    Route::post('/classrooms/{classroom}/archive', [LearningManagementController::class, 'archiveClassroom'])->whereNumber('classroom');
+    Route::delete('/courses/{course}/classrooms/{classroom}', [LearningManagementController::class, 'detachClassroom'])->whereNumber(['course', 'classroom']);
+    Route::post('/courses/{course}/teacher-transfer', [LearningManagementController::class, 'transferTeacher'])->whereNumber('course');
+    Route::get('/classrooms', [LearningManagementController::class, 'classrooms']);
+    Route::post('/classrooms/{classroom?}', [LearningManagementController::class, 'saveClassroom'])->whereNumber('classroom');
+    Route::put('/classrooms/{classroom}/members', [LearningManagementController::class, 'members'])->whereNumber('classroom');
+    Route::post('/courses/{course}/classrooms', [LearningManagementController::class, 'courseClassroom'])->whereNumber('course');
+    Route::post('/courses/{course}/teachers', [LearningManagementController::class, 'teachers'])->whereNumber('course');
+    Route::post('/courses/{course}/assign-bulk', [LearningManagementController::class, 'bulkAssign'])->whereNumber('course');
+    Route::post('/courses/{course}/activities/{activity}/archive', [LearningManagementController::class, 'archive'])->whereNumber(['course', 'activity']);
+    Route::get('/courses/{course}/report.csv', [LearningManagementController::class, 'report'])->whereNumber('course');
+    Route::get('/courses/{course}/roster.csv', [LearningManagementController::class, 'roster'])->whereNumber('course');
+    Route::post('/courses/{course}/hub/select', [LtiController::class, 'selectContent'])->whereNumber('course');
+    Route::post('/lti/deep-link/return', [LtiController::class, 'selectedContent'])->middleware('throttle:30,1')->name('lti.deep.return');
+    Route::put('/admin/users/{user}', [LearningManagementController::class, 'updateUser'])->whereNumber('user');
+    Route::post('/admin/users/{user}/password', [LearningManagementController::class, 'resetPassword'])->whereNumber('user')->middleware('throttle:10,1');
+    Route::post('/admin/users/import', [LearningManagementController::class, 'importUsers'])->middleware('throttle:5,1');
     Route::view('/account/password', 'password');
     Route::post('/logout', [LmsController::class, 'logout']);
     Route::post('/account/password', [LmsController::class, 'changePassword'])->middleware('throttle:5,1');

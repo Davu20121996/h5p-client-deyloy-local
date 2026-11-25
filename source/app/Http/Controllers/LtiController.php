@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Gradebook;
+use App\Services\LearningAccess;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
@@ -14,7 +17,11 @@ use Illuminate\Support\Str;
 class LtiController extends Controller
 {
     private const LTI = 'https://purl.imsglobal.org/spec/lti/claim/';
+
     private const AGS = 'https://purl.imsglobal.org/spec/lti-ags/scope/';
+
+    private const DEEP = 'https://purl.imsglobal.org/spec/lti-dl/claim/';
+
     private const SCOPES = ['score', 'lineitem.readonly', 'result.readonly'];
 
     public function learn(int $course, int $activity)
@@ -26,12 +33,12 @@ class LtiController extends Controller
 
     public function learningStatus(int $course, int $activity)
     {
-        $item = $this->launchable($course, $activity);
-        $grade = DB::table('grades')->where('activity_id', $activity)->where('user_id', Auth::id())
-            ->orderByDesc('reported_at')->first();
+        $item = $this->launchable($course, $activity, false);
+        $records = Gradebook::records($course, null, $activity)->where('grades.user_id', Auth::id())->get();
+        $grade = Gradebook::official($records)->first();
 
         return response()->json([
-            'completed' => $grade?->activity_progress === 'Completed',
+            'completed' => $grade?->completed ?? false,
             'score' => $grade?->score === null ? null : (float) $grade->score,
             'maximum' => (int) $item->maximum,
             'reported_at' => $grade?->reported_at,
@@ -54,6 +61,93 @@ class LtiController extends Controller
         ]);
     }
 
+    public function selectContent(Request $request, int $course)
+    {
+        $context = LearningAccess::manageCourse($course);
+        $data = $request->validate(['lti_registration_id' => 'required|integer']);
+        $tool = DB::table('lti_registrations')->where('tenant_id', $context->tenant_id)->where('id', $data['lti_registration_id'])->firstOrFail();
+        abort_unless($tool->deep_link_url && LearningAccess::origin($tool->deep_link_url) === LearningAccess::origin($tool->redirect_uri), 422, 'Quản trị viên cần cấu hình URL chọn bài của Hub.');
+        $selection = Str::random(64);
+        Cache::put('lti:selection:'.hash('sha256', $selection), [
+            'user' => Auth::id(), 'session' => $request->session()->getId(), 'course' => $course,
+            'tool' => $tool->id, 'client_id' => $tool->client_id, 'deployment_id' => $tool->deployment_id,
+            'public_key' => $tool->public_key, 'redirect_uri' => $tool->redirect_uri,
+        ], 1800);
+        $hint = Str::random(64);
+        Cache::put('lti:hint:'.hash('sha256', $hint), [
+            'user' => Auth::id(), 'session' => $request->session()->getId(), 'course' => $course,
+            'selection' => $selection, 'tool' => $tool->id,
+        ], 300);
+
+        return $this->form($tool->login_url, [
+            'iss' => config('app.url'), 'client_id' => $tool->client_id, 'login_hint' => $hint,
+            'lti_message_hint' => $hint, 'lti_deployment_id' => $tool->deployment_id, 'target_link_uri' => $tool->deep_link_url,
+        ]);
+    }
+
+    public function selectedContent(Request $request)
+    {
+        $input = $request->validate(['JWT' => 'required|string|max:131072']);
+        $parts = explode('.', $input['JWT']);
+        try {
+            $untrusted = count($parts) === 3 ? json_decode(JWT::urlsafeB64Decode($parts[1]), true, 32, JSON_THROW_ON_ERROR) : null;
+        } catch (\Throwable) {
+            abort(422, 'Phản hồi chọn bài không hợp lệ.');
+        }
+        $selection = is_array($untrusted) ? ($untrusted[self::DEEP.'data'] ?? null) : null;
+        abort_unless(is_string($selection) && strlen($selection) === 64, 403);
+        $cacheKey = 'lti:selection:'.hash('sha256', $selection);
+
+        return Cache::lock($cacheKey.':lock', 10)->get(function () use ($request, $input, $selection, $cacheKey) {
+            $pending = Cache::get($cacheKey);
+            abort_unless($pending && $pending['user'] === Auth::id() && $pending['session'] === $request->session()->getId(), 403, 'Phiên chọn bài đã hết hạn hoặc không thuộc tài khoản này.');
+            $course = LearningAccess::manageCourse($pending['course']);
+            $tool = DB::table('lti_registrations')->where('tenant_id', $course->tenant_id)->where('id', $pending['tool'])->firstOrFail();
+            foreach (['client_id', 'deployment_id', 'public_key', 'redirect_uri'] as $field) {
+                abort_unless($pending[$field] === $tool->$field, 409, 'Kết nối đã thay đổi. Hãy chọn bài lại.');
+            }
+            try {
+                $claims = (array) JWT::decode($input['JWT'], new Key($tool->public_key, 'RS256'));
+            } catch (\Throwable) {
+                abort(403, 'Chữ ký hoặc thời hạn phản hồi của Hub không hợp lệ.');
+            }
+            abort_unless(($claims['iss'] ?? null) === $tool->client_id
+                && in_array(config('app.url'), (array) ($claims['aud'] ?? []), true)
+                && ($claims[self::LTI.'message_type'] ?? null) === 'LtiDeepLinkingResponse'
+                && ($claims[self::LTI.'version'] ?? null) === '1.3.0'
+                && ($claims[self::LTI.'deployment_id'] ?? null) === $tool->deployment_id
+                && ($claims[self::DEEP.'data'] ?? null) === $selection
+                && is_int($claims['iat'] ?? null) && $claims['iat'] <= time() + 30 && $claims['iat'] >= time() - 1800
+                && is_int($claims['exp'] ?? null) && $claims['exp'] > time() && $claims['exp'] <= time() + 600, 403);
+            $items = $claims[self::DEEP.'content_items'] ?? [];
+            abort_unless(is_array($items) && count($items) <= 1, 422, 'Chỉ chọn một bài cho mỗi hoạt động.');
+            if ($items === []) {
+                $this->recordSelection($selection, $course->id);
+                Cache::forget($cacheKey);
+
+                return redirect('/courses/'.$course->id.'/activities')->with('status', 'Đã hủy chọn bài.');
+            }
+            $item = json_decode(json_encode($items[0]), true);
+            abort_unless(is_array($item), 422, 'Dữ liệu bài học không hợp lệ.');
+            $data = validator($item, ['type' => 'required|in:ltiResourceLink', 'title' => 'required|string|max:255', 'url' => 'required|url:https|max:2048', 'custom' => 'sometimes|array|max:30', 'custom.*' => 'string|max:2048'])->validate();
+            abort_unless(LearningAccess::origin($data['url']) && LearningAccess::origin($data['url']) === LearningAccess::origin($tool->redirect_uri), 422, 'Bài được chọn phải thuộc Hub đã đăng ký.');
+            DB::transaction(function () use ($course, $tool, $data, $selection) {
+                $this->recordSelection($selection, $course->id);
+                $id = DB::table('activities')->insertGetId([
+                    'course_id' => $course->id, 'lti_registration_id' => $tool->id, 'title' => $data['title'],
+                    'target_uri' => $data['url'], 'hub_custom' => json_encode($data['custom'] ?? []),
+                    'resource_link_id' => (string) Str::uuid(), 'maximum' => 100, 'published' => false,
+                    'sort_order' => (int) DB::table('activities')->where('course_id', $course->id)->max('sort_order') + 1,
+                ]);
+                DB::table('audit_logs')->insert(['event' => 'activity.hub_selected', 'user_id' => Auth::id(), 'resource_id' => $id]);
+                DB::table('lti_selection_receipts')->where('state_hash', hash('sha256', $selection))->update(['activity_id' => $id]);
+            });
+            Cache::forget($cacheKey);
+
+            return redirect('/courses/'.$course->id.'/activities')->with('status', 'Đã thêm bài từ Hub dưới dạng nháp. Thiết lập lịch, thang điểm và giao bài trước khi xuất bản.');
+        }) ?: abort(409);
+    }
+
     public function authorize(Request $request)
     {
         $data = $request->validate([
@@ -68,6 +162,9 @@ class LtiController extends Controller
         return Cache::lock($cacheKey.':lock', 10)->get(function () use ($request, $data, $cacheKey) {
             $pending = Cache::get($cacheKey);
             abort_unless($pending && $pending['user'] === Auth::id() && $pending['session'] === $request->session()->getId(), 403);
+            if (isset($pending['selection'])) {
+                return $this->authorizeSelection($pending, $data, $cacheKey);
+            }
             $item = $this->launchable($pending['course'], $pending['activity']);
             abort_unless($item->client_id === $data['client_id'] && $item->redirect_uri === $data['redirect_uri'], 403);
             $key = DB::table('lti_keys')->whereNull('retired_at')->latest('created_at')->first();
@@ -75,7 +172,7 @@ class LtiController extends Controller
             abort_unless(Cache::add('lti:nonce:'.hash('sha256', $item->client_id.'|'.$data['nonce']), true, 300), 409);
             $line = $this->endpoint('lti.line', ['course' => $item->course_id, 'activity' => $item->id]);
             $claims = [
-                'iss' => config('app.url'), 'sub' => (string) Auth::id(), 'aud' => $item->client_id,
+                'iss' => config('app.url'), 'sub' => (string) Auth::id(), 'aud' => $item->client_id, 'name' => Auth::user()->name,
                 'iat' => time(), 'exp' => time() + 300, 'nonce' => $data['nonce'],
                 self::LTI.'version' => '1.3.0', self::LTI.'message_type' => 'LtiResourceLinkRequest',
                 self::LTI.'deployment_id' => $item->deployment_id, self::LTI.'target_link_uri' => $item->target_uri,
@@ -88,12 +185,51 @@ class LtiController extends Controller
                     'lineitem' => $line, 'lineitems' => $this->endpoint('lti.lines', ['course' => $item->course_id]),
                 ],
             ];
+            if ($item->hub_custom) {
+                $claims[self::LTI.'custom'] = json_decode($item->hub_custom, true);
+            }
             $token = JWT::encode($claims, Crypt::decryptString($key->encrypted_key), 'RS256', $key->kid);
             Cache::forget($cacheKey);
             DB::table('audit_logs')->insert(['event' => 'lti.launch', 'user_id' => Auth::id(), 'resource_id' => $item->id]);
 
             return $this->form($item->redirect_uri, ['id_token' => $token, 'state' => $data['state']]);
         }) ?: abort(409);
+    }
+
+    private function recordSelection(string $selection, int $course): void
+    {
+        $created = DB::table('lti_selection_receipts')->insertOrIgnore([
+            'state_hash' => hash('sha256', $selection), 'course_id' => $course, 'user_id' => Auth::id(),
+        ]);
+        abort_unless($created === 1, 409, 'Phản hồi chọn bài đã được xử lý.');
+    }
+
+    private function authorizeSelection(array $pending, array $data, string $cacheKey)
+    {
+        $course = LearningAccess::manageCourse($pending['course']);
+        $tool = DB::table('lti_registrations')->where('id', $pending['tool'])->where('tenant_id', $course->tenant_id)->firstOrFail();
+        abort_unless($tool->client_id === $data['client_id'] && $tool->redirect_uri === $data['redirect_uri'] && $tool->deep_link_url, 403);
+        abort_unless(Cache::has('lti:selection:'.hash('sha256', $pending['selection'])), 403);
+        abort_unless(Cache::add('lti:nonce:'.hash('sha256', $tool->client_id.'|'.$data['nonce']), true, 300), 409);
+        $key = DB::table('lti_keys')->whereNull('retired_at')->latest('created_at')->first();
+        abort_unless($key, 503, 'Chưa có khóa ký LTI.');
+        $claims = [
+            'iss' => config('app.url'), 'sub' => (string) Auth::id(), 'aud' => $tool->client_id,
+            'iat' => time(), 'exp' => time() + 300, 'nonce' => $data['nonce'],
+            'name' => Auth::user()->name,
+            self::LTI.'version' => '1.3.0', self::LTI.'message_type' => 'LtiDeepLinkingRequest',
+            self::LTI.'deployment_id' => $tool->deployment_id, self::LTI.'target_link_uri' => $tool->deep_link_url,
+            self::LTI.'roles' => ['http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor'],
+            self::LTI.'context' => ['id' => (string) $course->id, 'title' => $course->title],
+            self::DEEP.'deep_linking_settings' => [
+                'deep_link_return_url' => $this->endpoint('lti.deep.return'), 'accept_types' => ['ltiResourceLink'],
+                'accept_presentation_document_targets' => ['window', 'iframe'], 'accept_multiple' => false,
+                'auto_create' => false, 'data' => $pending['selection'],
+            ],
+        ];
+        Cache::forget($cacheKey);
+
+        return $this->form($tool->redirect_uri, ['id_token' => JWT::encode($claims, Crypt::decryptString($key->encrypted_key), 'RS256', $key->kid), 'state' => $data['state']]);
     }
 
     public function jwks()
@@ -119,7 +255,7 @@ class LtiController extends Controller
         $tool = is_string($subject->sub ?? null) ? DB::table('lti_registrations')->where('client_id', $subject->sub)->first() : null;
         try {
             $claims = $tool ? JWT::decode($assertion, new Key($tool->public_key, 'RS256')) : null;
-        } catch (\UnexpectedValueException | \InvalidArgumentException | \DomainException) {
+        } catch (\UnexpectedValueException|\InvalidArgumentException|\DomainException) {
             $claims = null;
         }
         $deployment = $claims->{self::LTI.'deployment_id'} ?? $tool?->deployment_id;
@@ -170,19 +306,15 @@ class LtiController extends Controller
     public function results(Request $request, int $course, int $activity)
     {
         $item = $this->items($request, $course, 'result.readonly')->where('id', $activity)->firstOrFail();
-        $results = DB::table('grades')->where('activity_id', $activity)->whereNotNull('score')
-            ->whereNotExists(function ($query) {
-                $query->from('grades as newer')
-                    ->whereColumn('newer.activity_id', 'grades.activity_id')
-                    ->whereColumn('newer.user_id', 'grades.user_id')
-                    ->whereColumn('newer.reported_at', '>', 'grades.reported_at');
-            });
+        $results = DB::table('grades')->where('activity_id', $activity)->orderByDesc('reported_at');
         if ($request->filled('user_id')) {
             $results->where('user_id', $request->validate(['user_id' => 'required|integer|min:1'])['user_id']);
         }
         $line = $this->lineData($item)['id'];
 
-        return response()->json($results->get()->map(fn ($grade) => [
+        $rows = $results->get()->each(fn ($grade) => $grade->grade_policy = $item->grade_policy);
+
+        return response()->json(Gradebook::official($rows)->whereNotNull('score')->values()->map(fn ($grade) => [
             'id' => $line.'/results?user_id='.$grade->user_id, 'scoreOf' => $line,
             'userId' => (string) $grade->user_id, 'resultScore' => (float) $grade->score, 'resultMaximum' => $item->maximum,
         ]), 200, ['Content-Type' => 'application/vnd.ims.lis.v2.resultcontainer+json']);
@@ -199,10 +331,12 @@ class LtiController extends Controller
         ]);
         DB::transaction(function () use ($items, $course, $activity, $data) {
             $item = $items->lockForUpdate()->firstOrFail();
-            abort_unless(DB::table('enrollments')->where('course_id', $course)->where('user_id', $data['userId'])->exists(), 404);
+            abort_unless(DB::table('enrollments')->join('users', 'users.id', '=', 'enrollments.user_id')->where('course_id', $course)->where('user_id', $data['userId'])->where('users.role', 'student')->where('users.locked', false)->where('users.tenant_id', DB::table('courses')->where('id', $course)->value('tenant_id'))->exists(), 404);
             abort_unless(DB::table('activity_assignments')->where('activity_id', $activity)->where('user_id', $data['userId'])->exists(), 404);
-            $timestamp = \Illuminate\Support\Carbon::parse($data['timestamp'])->utc();
+            $timestamp = Carbon::parse($data['timestamp'])->utc();
             abort_if($timestamp->gt(now()->addMinutes(5)), 422);
+            abort_if(($item->opens_at && $timestamp->lt($item->opens_at)) || ($item->closes_at && $timestamp->gte($item->closes_at)), 422, 'Kết quả nằm ngoài thời gian mở bài.');
+            abort_if(isset($data['scoreGiven'], $data['scoreMaximum']) && $data['scoreGiven'] > $data['scoreMaximum'], 422);
             $score = $data['gradingProgress'] === 'FullyGraded' && isset($data['scoreGiven'])
                 ? round(($data['scoreGiven'] / $data['scoreMaximum']) * $item->maximum, 4) : null;
             abort_if($score !== null && $score >= 100000000, 422);
@@ -237,7 +371,7 @@ class LtiController extends Controller
         abort_unless($tenant && $tenant === ($grant['tenant'] ?? $tenant), 401, '', ['WWW-Authenticate' => 'Bearer']);
         abort_unless(DB::table('courses')->where('id', $course)->where('tenant_id', $tenant)->exists(), 404);
 
-        return DB::table('activities')->where('course_id', $course)->where('lti_registration_id', $grant['tool'])->where('published', true);
+        return DB::table('activities')->where('course_id', $course)->where('lti_registration_id', $grant['tool'])->where('published', true)->whereNull('archived_at');
     }
 
     private function lineData(object $item): array
@@ -253,16 +387,20 @@ class LtiController extends Controller
         return rtrim(config('app.url'), '/').route($name, $parameters, false);
     }
 
-    private function launchable(int $course, int $activity): object
+    private function launchable(int $course, int $activity, bool $checkWindow = true): object
     {
         abort_if(Auth::user()?->role === 'admin', 403);
         $context = LmsController::courses()->where('id', $course)->firstOrFail();
 
-        return DB::table('activities')->join('lti_registrations as tool', 'tool.id', '=', 'activities.lti_registration_id')
-            ->where('activities.id', $activity)->where('course_id', $course)->where('tool.tenant_id', $context->tenant_id)->where('published', true)
+        $item = DB::table('activities')->join('lti_registrations as tool', 'tool.id', '=', 'activities.lti_registration_id')
+            ->where('activities.id', $activity)->where('course_id', $course)->where('tool.tenant_id', $context->tenant_id)->where('published', true)->whereNull('archived_at')
             ->when(Auth::user()->role === 'student', fn ($query) => $query->whereIn('activities.id', LmsController::assignedActivities(Auth::id())))
             ->select('activities.*', 'tool.login_url', 'tool.client_id', 'tool.deployment_id', 'tool.redirect_uri')
             ->selectRaw('? as course_title', [$context->title])->firstOrFail();
+        abort_if($checkWindow && Auth::user()->role === 'student' && ! LearningAccess::available($item), 403,
+            LearningAccess::availability($item) === 'scheduled' ? 'Bài học chưa đến giờ mở.' : 'Bài học đã đóng.');
+
+        return $item;
     }
 
     private function form(string $action, array $fields)

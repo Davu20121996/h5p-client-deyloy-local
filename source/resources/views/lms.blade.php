@@ -58,10 +58,12 @@
 <h2 class="section-title">Hoạt động H5P</h2>
 <section class="card list">
 @forelse($activities as $activity)
-<div class="row"><span class="tile" aria-hidden="true">▶</span><div class="grow"><strong>{{ $activity->title }}</strong><div class="muted">{{ $activity->maximum }} điểm · {{ $activity->published ? 'Đã xuất bản' : 'Bản nháp' }}</div></div>
+<div class="row"><span class="tile" aria-hidden="true">▶</span><div class="grow"><strong>{{ $activity->title }}</strong><div class="muted">{{ $activity->maximum }} điểm · {{ $activity->archived_at ? 'Đã lưu trữ' : ($activity->published ? 'Đã xuất bản' : 'Bản nháp') }}</div>
+@if($activity->due_at)<small>Hạn nộp {{ \Illuminate\Support\Carbon::parse($activity->due_at)->setTimezone('Asia/Ho_Chi_Minh')->format('d/m/Y H:i') }}</small>@endif
+@if(!$manage && !\App\Services\LearningAccess::available($activity))<p class="muted">{{ \App\Services\LearningAccess::availability($activity) === 'scheduled' ? 'Chưa đến giờ mở bài' : 'Đã hết thời gian mở bài' }}@if(\App\Services\LearningAccess::availability($activity) === 'scheduled') · {{ \Illuminate\Support\Carbon::parse($activity->opens_at)->setTimezone('Asia/Ho_Chi_Minh')->format('d/m/Y H:i') }}@endif</p>@endif</div>
 @if(parse_url($activity->target_uri, PHP_URL_HOST) === 'demo.invalid')
 <span class="muted">Bài mẫu · Chưa kết nối H5P</span>
-@elseif($activity->published && auth()->user()->role !== 'admin')
+@elseif($activity->published && !$activity->archived_at && auth()->user()->role !== 'admin' && ($manage || \App\Services\LearningAccess::available($activity)))
 <a class="link" href="/courses/{{ $course->id }}/activities/{{ $activity->id }}/learn">Mở bài học →</a>
 @endif
 @if($manage)
@@ -69,6 +71,7 @@
 @include('activity-form', ['item' => $activity])
 </x-modal>
 <form method="post" action="/courses/{{ $course->id }}/activities/{{ $activity->id }}">@csrf<input type="hidden" name="published" value="{{ $activity->published ? 0 : 1 }}"><button class="outline">{{ $activity->published ? 'Ẩn' : 'Xuất bản' }}</button></form>
+<form method="post" action="/courses/{{ $course->id }}/activities/{{ $activity->id }}/archive">@csrf<input type="hidden" name="archived" value="{{ $activity->archived_at ? 0 : 1 }}"><button class="outline">{{ $activity->archived_at ? 'Khôi phục bản nháp' : 'Lưu trữ' }}</button></form>
 @endif
 </div>
 @empty
@@ -76,14 +79,17 @@
 @endforelse
 </section>
 @elseif($screen === 'grades')
-<h2 class="section-title">Sổ điểm</h2>
-<section class="card table-wrap">
-<table><thead><tr><th>Học viên</th><th>Hoạt động</th><th>Điểm</th><th>Thời gian (UTC+7)</th></tr></thead>
-<tbody>@forelse($grades as $grade)<tr><td>{{ $grade->name }}</td><td>{{ $grade->title }}</td><td>{{ $grade->score === null ? '—' : (float) $grade->score }} / {{ $grade->maximum }}</td><td>{{ \Illuminate\Support\Carbon::parse($grade->reported_at)->setTimezone('Asia/Ho_Chi_Minh')->format('d/m/Y H:i:s') }}</td></tr>@empty<tr><td colspan="4" class="muted">Chưa có điểm trả về.</td></tr>@endforelse</tbody></table>
-</section>
+@include('gradebook')
 @endif
 @if($manage && $screen === 'activities')
 <div class="section">
+<section class="card settings-card"><h2>Thêm bài từ Hub</h2>
+@if($tools->whereNotNull('deep_link_url')->isNotEmpty())
+<form method="post" action="/courses/{{ $course->id }}/hub/select" class="fields">@csrf
+<label>Kho nội dung<select name="lti_registration_id" required>@foreach($tools->whereNotNull('deep_link_url') as $tool)<option value="{{ $tool->id }}">{{ $tool->name }}</option>@endforeach</select></label>
+<p>Chọn bài trên Hub rồi quay lại khóa học. Bài được thêm dưới dạng nháp.</p><button>Mở kho và chọn bài</button></form>
+@else<p>Quản trị tổ chức cần nhập URL chọn bài trong Công cụ LTI để kết nối kho Hub.</p>@endif
+</section>
 <x-modal id="activity-create" title="Thêm hoạt động H5P">
 @if($tools->isEmpty())<p>Quản trị viên cần đăng ký công cụ LTI trước.</p>@else
 @include('activity-form', ['item' => null])
@@ -91,6 +97,7 @@
 </x-modal>
 </div>
 @elseif($screen === 'enrollment')
+@if($manage)@include('course-management')@endif
 <h2 class="section-title">Ghi danh học viên</h2>
 @if($manage)
 <section class="card settings-card"><form method="post" action="/courses/{{ $course->id }}/enroll" class="fields">@csrf
@@ -103,6 +110,7 @@
 <button>Ghi danh</button></form></section>
 @endif
 <h2 class="section-title">Học viên đã ghi danh <span class="pill">{{ $learners->count() }}</span></h2>
+@if($manage)<p><a class="link" href="/courses/{{ $course->id }}/roster.csv">Tải danh sách học viên CSV</a></p>@endif
 <section class="card table-wrap">
 <table><thead><tr><th>Họ tên</th><th>Email</th><th>Thao tác</th></tr></thead>
 <tbody>
@@ -132,7 +140,8 @@
 <form method="post" action="/courses/{{ $course->id }}/assign" class="fields">@csrf
 <label>Học viên<select name="user_id" required>@foreach($learners as $learner)<option value="{{ $learner->id }}">{{ $learner->name }} ({{ $learner->email }})</option>@endforeach</select></label>
 <label>Hoạt động<select name="activity_id" required>@foreach($activities as $activity)<option value="{{ $activity->id }}">{{ $activity->title }}{{ $activity->published ? '' : ' (bản nháp)' }}</option>@endforeach</select></label>
-<div class="row"><button name="granted" value="1">Cấp quyền</button><button class="outline" name="granted" value="0">Thu hồi quyền</button></div>
+<p>Cấp/thu hồi riêng được giữ qua các đợt giao hàng loạt. “Theo đợt giao” bỏ ngoại lệ và áp dụng lại trạng thái của đợt giao gần nhất cho người này.</p>
+<div class="row"><button name="granted" value="1">Cấp quyền riêng</button><button class="outline" name="granted" value="0">Thu hồi riêng</button><button class="outline" name="mode" value="inherit">Theo đợt giao</button></div>
 </form>
 @endif
 @forelse($assignments as $assignment)
@@ -140,8 +149,10 @@
 @empty
 <p class="muted">Chưa có bài được cấp.</p>
 @endforelse
+@if($assignmentOverrides->isNotEmpty())<h3>Ngoại lệ cá nhân</h3>@foreach($assignmentOverrides as $override)<p>{{ $override->name }} · {{ $override->title }} · {{ $override->granted ? 'Luôn cấp riêng' : 'Thu hồi riêng' }}</p>@endforeach @endif
 </section>
 @elseif($screen === 'settings' && $manage)
+@include('course-management')
 <h2 class="section-title">Cài đặt khóa học</h2>
 <div class="grid management">
 <x-modal id="course-edit" title="Sửa thông tin"><form method="post" action="/courses/{{ $course->id }}" class="fields">@csrf<input type="hidden" name="_modal" value="course-edit">
