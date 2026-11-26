@@ -27,13 +27,13 @@ Mỗi lượt mở gửi mã người đang đăng nhập, vai trò và deployme
 
 ### Dọn dữ liệu demo của Client
 
-Trong thư mục source của môi trường local hoặc testing, chạy:
+Trong thư mục `source` hoặc `/var/www/app` của container Client kết nối đến database demo, chạy:
 
 ```bash
 php artisan db:seed --class=ResetClientLearningDataSeeder
 ```
 
-Seed xóa khóa, lớp, bài, điểm, nhật ký và các tài khoản giáo viên, học sinh trong cơ sở dữ liệu đang kết nối. Seed giữ tổ chức, Tenant Admin, khóa ký và cấu hình LTI. Production từ chối chạy seed. Dữ liệu Hub được quản lý tại Hub.
+Seed xóa khóa, lớp, bài, điểm, nhật ký và các tài khoản giáo viên, học sinh trong cơ sở dữ liệu đang kết nối. Seed giữ tổ chức, Tenant Admin, khóa ký và cấu hình LTI. Khi container dùng `APP_ENV=production`, kiểm tra đúng database demo rồi chọn **Yes** tại bước xác nhận của Artisan. Dữ liệu Hub được quản lý tại Hub.
 
 ### Cập nhật dữ liệu và kiểm thử
 

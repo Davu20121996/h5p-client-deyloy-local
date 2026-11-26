@@ -274,13 +274,18 @@ class LearningManagementTest extends TestCase
         $this->assertDatabaseCount('lti_keys', 1);
     }
 
-    public function test_reset_seed_rejects_production(): void
+    public function test_reset_seed_uses_artisan_production_confirmation(): void
     {
         $this->app->instance('env', 'production');
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('runs only in local or testing environments');
-        (new ResetClientLearningDataSeeder)->run();
+        $this->artisan('db:seed', ['--class' => ResetClientLearningDataSeeder::class])
+            ->expectsConfirmation('Are you sure you want to run this command?', 'no')->assertFailed();
+        $this->assertDatabaseCount('courses', 1);
+
+        $this->artisan('db:seed', ['--class' => ResetClientLearningDataSeeder::class])
+            ->expectsConfirmation('Are you sure you want to run this command?', 'yes')->assertSuccessful();
+        $this->assertDatabaseCount('courses', 0);
+        $this->assertDatabaseHas('users', ['id' => $this->manager->id, 'role' => 'tenant_admin']);
     }
 
     public function test_hub_return_rejects_wrong_audience_deployment_target_signature_and_expiry(): void
