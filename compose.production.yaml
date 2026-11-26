@@ -1,7 +1,7 @@
 # H5P Client - deploy truc tiep tu GitHub bang Dockhand, khong chay setup.sh.
 # Compose Path: compose.production.yaml | Context directory: .
 # Bat Build images on deploy; nhap bien theo .env.production.example.
-# Lan dau: APP_URL, APP_KEY, DB_PASSWORD, ADMIN_EMAIL, ADMIN_PASSWORD.
+# Lan dau: APP_URL, APP_KEY, DB_PASSWORD, HUB_BASE_URL, HUB_PROVISIONING_SECRET.
 # Giu nguyen APP_KEY va volume khi cap nhat; init thanh cong se Exited (0).
 name: secure-lti
 
@@ -15,9 +15,11 @@ x-app: &app
   environment: &environment
     APP_NAME: Secure LTI
     APP_ENV: production
-    APP_DEBUG: "true"
+    APP_DEBUG: "false"
     APP_KEY: ${APP_KEY:?Set APP_KEY in Dockhand}
     APP_URL: ${APP_URL:?Set APP_URL in Dockhand}
+    HUB_BASE_URL: ${HUB_BASE_URL:-}
+    HUB_PROVISIONING_SECRET: ${HUB_PROVISIONING_SECRET:-}
     APP_LOCALE: vi
     LOG_CHANNEL: stderr
     LOG_LEVEL: warning
@@ -44,11 +46,6 @@ services:
     <<: *app
     restart: "no"
     entrypoint: ["sh", "/usr/local/bin/production-init.sh"]
-    environment:
-      <<: *environment
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      ADMIN_NAME: ${ADMIN_NAME:-Quản trị hệ thống}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy

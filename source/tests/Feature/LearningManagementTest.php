@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Services\Gradebook;
+use Database\Seeders\ResetClientLearningDataSeeder;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -200,10 +201,10 @@ class LearningManagementTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'first@example.com', 'tenant_id' => 1, 'role' => 'student']);
     }
 
-    private function selection(): array
+    private function selection(bool $embedded = false): array
     {
         DB::table('lti_keys')->insertOrIgnore(['kid' => 'test', 'encrypted_key' => Crypt::encryptString(self::$privateKey), 'modulus' => '', 'exponent' => '']);
-        $response = $this->post('/courses/1/hub/select', ['lti_registration_id' => 1])->assertOk();
+        $response = $this->post('/courses/1/hub/select', ['lti_registration_id' => 1, 'embedded' => $embedded])->assertOk();
         $fields = $response->viewData('fields');
         $this->withCookie(config('session.cookie'), $this->app['session']->getId());
         $auth = $this->get('/lti/authorize?'.http_build_query([
@@ -213,6 +214,11 @@ class LearningManagementTest extends TestCase
         ]))->assertOk();
         $claims = (array) JWT::decode($auth->viewData('fields')['id_token'], new Key(self::$publicKey, 'RS256'));
         $this->assertSame('LtiDeepLinkingRequest', $claims[self::LTI.'message_type']);
+        $this->assertSame((string) auth()->id(), $claims['sub']);
+        $this->assertSame('deployment-a', $claims[self::LTI.'deployment_id']);
+        $this->assertContains('http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor', $claims[self::LTI.'roles']);
+        $this->assertSame(auth()->user()->role === 'tenant_admin', in_array('http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator', $claims[self::LTI.'roles'], true));
+        $this->assertArrayNotHasKey('password', $claims);
         $settings = (array) $claims[self::DEEP.'deep_linking_settings'];
         $this->assertSame('https://client.example/lti/deep-link/return', $settings['deep_link_return_url']);
 
@@ -237,6 +243,44 @@ class LearningManagementTest extends TestCase
         $this->assertSame(['content_id' => 'two'], json_decode(DB::table('activities')->where('title', 'Selected from Hub')->value('hub_custom'), true));
         $this->returnSelection($claims)->assertForbidden();
         $this->assertDatabaseCount('activities', 2);
+    }
+
+    public function test_teacher_selects_a_hub_activity_inside_the_client_and_learner_cannot_select(): void
+    {
+        $this->actingAs($this->student)->post('/courses/1/hub/select', ['lti_registration_id' => 1])->assertForbidden();
+        $this->actingAs($this->teacher)->get('/courses/1/activities')->assertOk()
+            ->assertSee('target="hub-picker"', false)->assertSee('<iframe name="hub-picker"', false);
+        $this->returnSelection($this->selection(true))->assertOk()
+            ->assertViewIs('hub-selection-result')->assertSessionHas('status');
+        $this->assertDatabaseHas('activities', ['title' => 'Selected from Hub', 'published' => false]);
+    }
+
+    public function test_reset_seed_keeps_provisioning_and_clears_learning_data_idempotently(): void
+    {
+        $this->classroom();
+        $this->selection();
+        DB::table('grades')->insert(['activity_id' => 1, 'user_id' => $this->student->id, 'score' => 7, 'reported_at' => now()]);
+        DB::table('sessions')->insert(['id' => 'learner', 'user_id' => $this->student->id, 'payload' => '', 'last_activity' => time()]);
+        $this->seed(ResetClientLearningDataSeeder::class);
+        $this->seed(ResetClientLearningDataSeeder::class);
+
+        foreach (['courses', 'activities', 'grades', 'enrollments', 'activity_assignments', 'classrooms', 'sessions'] as $table) {
+            $this->assertDatabaseCount($table, 0);
+        }
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseHas('users', ['id' => $this->manager->id, 'role' => 'tenant_admin']);
+        $this->assertDatabaseCount('tenants', 2);
+        $this->assertDatabaseCount('lti_registrations', 1);
+        $this->assertDatabaseCount('lti_keys', 1);
+    }
+
+    public function test_reset_seed_rejects_production(): void
+    {
+        $this->app->instance('env', 'production');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('runs only in local or testing environments');
+        (new ResetClientLearningDataSeeder)->run();
     }
 
     public function test_hub_return_rejects_wrong_audience_deployment_target_signature_and_expiry(): void
@@ -275,6 +319,8 @@ class LearningManagementTest extends TestCase
         $this->returnSelection($claims)->assertRedirect();
         $activity = DB::table('activities')->where('title', 'Selected from Hub')->first();
         DB::table('activities')->where('id', $activity->id)->update(['published' => true]);
+        DB::table('activity_assignments')->insert(['activity_id' => $activity->id, 'user_id' => $this->student->id]);
+        $this->actingAs($this->student);
         $start = $this->post('/courses/1/activities/'.$activity->id.'/launch')->assertOk()->viewData('fields');
         $response = $this->get('/lti/authorize?'.http_build_query([
             'login_hint' => $start['login_hint'], 'lti_message_hint' => $start['lti_message_hint'],
@@ -284,6 +330,9 @@ class LearningManagementTest extends TestCase
         $token = JWT::decode($response->viewData('fields')['id_token'], new Key(self::$publicKey, 'RS256'));
         $this->assertSame('LtiResourceLinkRequest', $token->{self::LTI.'message_type'});
         $this->assertSame('two', $token->{self::LTI.'custom'}->content_id);
+        $this->assertSame((string) $this->student->id, $token->sub);
+        $this->assertSame(['http://purl.imsglobal.org/vocab/lis/v2/membership#Learner'], $token->{self::LTI.'roles'});
+        $this->assertObjectNotHasProperty('password', $token);
     }
 
     public function test_student_cannot_select_hub_or_manage_classes_and_locked_users_cannot_receive_scores(): void
@@ -302,7 +351,7 @@ class LearningManagementTest extends TestCase
     public function test_management_views_render_without_exposing_foreign_tenant(): void
     {
         $this->classroom();
-        foreach (['/classrooms', '/courses/1/activities', '/courses/1/enrollment', '/courses/1/settings', '/courses/1/grades', '/admin/users', '/admin/tools', '/reports', '/account/profile', '/admin/tools/1/check'] as $path) {
+        foreach (['/classrooms', '/courses/1/activities', '/courses/1/enrollment', '/courses/1/settings', '/courses/1/grades', '/admin/tenants', '/admin/users', '/admin/tools', '/admin/logs', '/reports', '/account/profile', '/admin/tools/1/check'] as $path) {
             $this->get($path)->assertOk()->assertDontSee($this->foreign->email);
         }
     }

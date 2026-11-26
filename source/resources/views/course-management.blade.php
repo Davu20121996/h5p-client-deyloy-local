@@ -21,7 +21,7 @@
 <label>Bài học<select name="activity_id">@foreach($activities as $activity)<option value="{{ $activity->id }}">{{ $activity->title }}</option>@endforeach</select></label>
 <label>Đối tượng<select name="audience"><option value="course">Tất cả học viên đã ghi danh</option><option value="classroom">Một lớp đã gắn</option></select></label>
 <label>Lớp khi chọn giao theo lớp<select name="classroom_id"><option value="">Chọn lớp</option>@foreach($classrooms->whereIn('id', $attachedClassrooms) as $classroom)<option value="{{ $classroom->id }}">{{ $classroom->name }}</option>@endforeach</select></label>
-<div class="row"><button name="granted" value="1">Giao bài</button><button name="granted" value="0" class="outline">Thu hồi bài</button></div>
+<div class="actions"><button name="granted" value="1">Giao bài</button><button name="granted" value="0" class="outline">Thu hồi bài</button></div>
 </form>@else<p>Tạo hoạt động trước khi giao bài.</p>@endif
 </section>
 @elseif($screen === 'settings')
@@ -33,7 +33,7 @@
 @if($teachers->where('id', '!=', $course->teacher_id)->isNotEmpty())
 <form method="post" action="/courses/{{ $course->id }}/teachers" class="fields">@csrf
 <label>Giáo viên<select name="user_id" required>@foreach($teachers->where('id', '!=', $course->teacher_id) as $teacher)<option value="{{ $teacher->id }}">{{ $teacher->name }}{{ $coTeachers->contains($teacher->id) ? ' · Đang đồng giảng' : '' }}{{ $teacher->locked ? ' · Đã khóa' : '' }}</option>@endforeach</select></label>
-<div class="row"><button name="granted" value="1" @disabled($teachers->where('id', '!=', $course->teacher_id)->where('locked', false)->isEmpty())>Thêm đồng giảng</button><button name="granted" value="0" class="outline">Thu hồi đồng giảng</button></div></form>
+<div class="actions"><button name="granted" value="1" @disabled($teachers->where('id', '!=', $course->teacher_id)->where('locked', false)->isEmpty())>Thêm đồng giảng</button><button name="granted" value="0" class="outline">Thu hồi đồng giảng</button></div></form>
 @else<p>Chưa có giáo viên khác trong tổ chức. Quản trị tổ chức có thể tạo thêm tại mục Tài khoản.</p>@endif
 @if($teachers->where('id', '!=', $course->teacher_id)->where('locked', false)->isNotEmpty())
 <x-modal id="teacher-transfer" title="Bàn giao giáo viên phụ trách">

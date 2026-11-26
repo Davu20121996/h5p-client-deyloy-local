@@ -8,6 +8,8 @@ services:
       - php_vendor:/var/www/app/vendor
     environment:
       APP_URL: ${APP_URL:?Run bash setup.sh first}
+      HUB_BASE_URL: ${HUB_BASE_URL:-}
+      HUB_PROVISIONING_SECRET: ${HUB_PROVISIONING_SECRET:-}
       APP_ENV: production
       APP_DEBUG: "false"
       APP_LOCALE: vi

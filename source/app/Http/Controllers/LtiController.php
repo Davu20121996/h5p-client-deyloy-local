@@ -64,7 +64,7 @@ class LtiController extends Controller
     public function selectContent(Request $request, int $course)
     {
         $context = LearningAccess::manageCourse($course);
-        $data = $request->validate(['lti_registration_id' => 'required|integer']);
+        $data = $request->validate(['lti_registration_id' => 'required|integer', 'embedded' => 'sometimes|boolean']);
         $tool = DB::table('lti_registrations')->where('tenant_id', $context->tenant_id)->where('id', $data['lti_registration_id'])->firstOrFail();
         abort_unless($tool->deep_link_url && LearningAccess::origin($tool->deep_link_url) === LearningAccess::origin($tool->redirect_uri), 422, 'Quản trị viên cần cấu hình URL chọn bài của Hub.');
         $selection = Str::random(64);
@@ -72,6 +72,7 @@ class LtiController extends Controller
             'user' => Auth::id(), 'session' => $request->session()->getId(), 'course' => $course,
             'tool' => $tool->id, 'client_id' => $tool->client_id, 'deployment_id' => $tool->deployment_id,
             'public_key' => $tool->public_key, 'redirect_uri' => $tool->redirect_uri,
+            'embedded' => $request->boolean('embedded'),
         ], 1800);
         $hint = Str::random(64);
         Cache::put('lti:hint:'.hash('sha256', $hint), [
@@ -125,7 +126,7 @@ class LtiController extends Controller
                 $this->recordSelection($selection, $course->id);
                 Cache::forget($cacheKey);
 
-                return redirect('/courses/'.$course->id.'/activities')->with('status', 'Đã hủy chọn bài.');
+                return $this->selectionResult($course->id, $pending['embedded'] ?? false, 'Đã hủy chọn bài.');
             }
             $item = json_decode(json_encode($items[0]), true);
             abort_unless(is_array($item), 422, 'Dữ liệu bài học không hợp lệ.');
@@ -144,7 +145,8 @@ class LtiController extends Controller
             });
             Cache::forget($cacheKey);
 
-            return redirect('/courses/'.$course->id.'/activities')->with('status', 'Đã thêm bài từ Hub dưới dạng nháp. Thiết lập lịch, thang điểm và giao bài trước khi xuất bản.');
+            return $this->selectionResult($course->id, $pending['embedded'] ?? false,
+                'Đã thêm bài từ Hub dưới dạng nháp. Thiết lập lịch, thang điểm và giao bài trước khi xuất bản.');
         }) ?: abort(409);
     }
 
@@ -179,7 +181,7 @@ class LtiController extends Controller
                 self::LTI.'resource_link' => ['id' => $item->resource_link_id, 'title' => $item->title],
                 self::LTI.'context' => ['id' => (string) $item->course_id, 'title' => $item->course_title,
                     'type' => ['http://purl.imsglobal.org/vocab/lis/v2/course#CourseOffering']],
-                self::LTI.'roles' => ['http://purl.imsglobal.org/vocab/lis/v2/membership#'.(Auth::user()->role === 'student' ? 'Learner' : 'Instructor')],
+                self::LTI.'roles' => $this->launchRoles(),
                 'https://purl.imsglobal.org/spec/lti-ags/claim/endpoint' => [
                     'scope' => array_map(fn ($scope) => self::AGS.$scope, self::SCOPES),
                     'lineitem' => $line, 'lineitems' => $this->endpoint('lti.lines', ['course' => $item->course_id]),
@@ -219,7 +221,7 @@ class LtiController extends Controller
             'name' => Auth::user()->name,
             self::LTI.'version' => '1.3.0', self::LTI.'message_type' => 'LtiDeepLinkingRequest',
             self::LTI.'deployment_id' => $tool->deployment_id, self::LTI.'target_link_uri' => $tool->deep_link_url,
-            self::LTI.'roles' => ['http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor'],
+            self::LTI.'roles' => $this->launchRoles(),
             self::LTI.'context' => ['id' => (string) $course->id, 'title' => $course->title],
             self::DEEP.'deep_linking_settings' => [
                 'deep_link_return_url' => $this->endpoint('lti.deep.return'), 'accept_types' => ['ltiResourceLink'],
@@ -385,6 +387,31 @@ class LtiController extends Controller
     private function endpoint(string $name, array $parameters = []): string
     {
         return rtrim(config('app.url'), '/').route($name, $parameters, false);
+    }
+
+    private function launchRoles(): array
+    {
+        $roles = match (Auth::user()->role) {
+            'tenant_admin' => ['Administrator', 'Instructor'],
+            'teacher' => ['Instructor'],
+            'student' => ['Learner'],
+        };
+
+        return array_map(fn (string $role) => 'http://purl.imsglobal.org/vocab/lis/v2/membership#'.$role, $roles);
+    }
+
+    private function selectionResult(int $course, bool $embedded, string $message)
+    {
+        $destination = '/courses/'.$course.'/activities';
+        if (! $embedded) {
+            return redirect($destination)->with('status', $message);
+        }
+
+        session()->flash('status', $message);
+
+        return response()->view('hub-selection-result', compact('destination', 'message'))
+            ->header('Cache-Control', 'no-store')
+            ->header('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; frame-ancestors 'self'; base-uri 'none'");
     }
 
     private function launchable(int $course, int $activity, bool $checkWindow = true): object

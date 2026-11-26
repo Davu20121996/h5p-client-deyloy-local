@@ -58,13 +58,16 @@
 <h2 class="section-title">Hoạt động H5P</h2>
 <section class="card list">
 @forelse($activities as $activity)
-<div class="row"><span class="tile" aria-hidden="true">▶</span><div class="grow"><strong>{{ $activity->title }}</strong><div class="muted">{{ $activity->maximum }} điểm · {{ $activity->archived_at ? 'Đã lưu trữ' : ($activity->published ? 'Đã xuất bản' : 'Bản nháp') }}</div>
+<div class="row activity-row">
+<div class="activity-details"><span class="tile" aria-hidden="true">▶</span><div class="grow"><strong>{{ $activity->title }}</strong><div class="muted">{{ $activity->maximum }} điểm · {{ $activity->archived_at ? 'Đã lưu trữ' : ($activity->published ? 'Đã xuất bản' : 'Bản nháp') }}</div>
 @if($activity->due_at)<small>Hạn nộp {{ \Illuminate\Support\Carbon::parse($activity->due_at)->setTimezone('Asia/Ho_Chi_Minh')->format('d/m/Y H:i') }}</small>@endif
 @if(!$manage && !\App\Services\LearningAccess::available($activity))<p class="muted">{{ \App\Services\LearningAccess::availability($activity) === 'scheduled' ? 'Chưa đến giờ mở bài' : 'Đã hết thời gian mở bài' }}@if(\App\Services\LearningAccess::availability($activity) === 'scheduled') · {{ \Illuminate\Support\Carbon::parse($activity->opens_at)->setTimezone('Asia/Ho_Chi_Minh')->format('d/m/Y H:i') }}@endif</p>@endif</div>
+</div>
+<div class="actions">
 @if(parse_url($activity->target_uri, PHP_URL_HOST) === 'demo.invalid')
 <span class="muted">Bài mẫu · Chưa kết nối H5P</span>
 @elseif($activity->published && !$activity->archived_at && auth()->user()->role !== 'admin' && ($manage || \App\Services\LearningAccess::available($activity)))
-<a class="link" href="/courses/{{ $course->id }}/activities/{{ $activity->id }}/learn">Mở bài học →</a>
+<a class="button-link" href="/courses/{{ $course->id }}/activities/{{ $activity->id }}/learn">Mở bài học →</a>
 @endif
 @if($manage)
 <x-modal :id="'activity-edit-'.$activity->id" title="Sửa hoạt động H5P">
@@ -73,6 +76,7 @@
 <form method="post" action="/courses/{{ $course->id }}/activities/{{ $activity->id }}">@csrf<input type="hidden" name="published" value="{{ $activity->published ? 0 : 1 }}"><button class="outline">{{ $activity->published ? 'Ẩn' : 'Xuất bản' }}</button></form>
 <form method="post" action="/courses/{{ $course->id }}/activities/{{ $activity->id }}/archive">@csrf<input type="hidden" name="archived" value="{{ $activity->archived_at ? 0 : 1 }}"><button class="outline">{{ $activity->archived_at ? 'Khôi phục bản nháp' : 'Lưu trữ' }}</button></form>
 @endif
+</div>
 </div>
 @empty
 <p class="empty">Chưa có hoạt động.</p>
@@ -85,11 +89,20 @@
 <div class="section">
 <section class="card settings-card"><h2>Thêm bài từ Hub</h2>
 @if($tools->whereNotNull('deep_link_url')->isNotEmpty())
-<form method="post" action="/courses/{{ $course->id }}/hub/select" class="fields">@csrf
+<form method="post" action="/courses/{{ $course->id }}/hub/select" class="fields" target="hub-picker" data-hub-picker-form>@csrf
 <label>Kho nội dung<select name="lti_registration_id" required>@foreach($tools->whereNotNull('deep_link_url') as $tool)<option value="{{ $tool->id }}">{{ $tool->name }}</option>@endforeach</select></label>
-<p>Chọn bài trên Hub rồi quay lại khóa học. Bài được thêm dưới dạng nháp.</p><button>Mở kho và chọn bài</button></form>
-@else<p>Quản trị tổ chức cần nhập URL chọn bài trong Công cụ LTI để kết nối kho Hub.</p>@endif
+<p>Bài được thêm vào khóa học dưới dạng nháp.</p>
+<div class="actions">
+    <button type="submit" name="embedded" value="1">Mở thư viện H5P</button>
+    <button class="outline" type="submit" name="embedded" value="0" formtarget="_blank">Mở ở tab mới</button>
+</div>
+</form>
+@else<p>Liên hệ quản trị hệ thống để thiết lập kết nối của tổ chức trên H5P Hub.</p>@endif
 </section>
+@if($tools->whereNotNull('deep_link_url')->isNotEmpty())
+<iframe name="hub-picker" class="hub-picker" title="Thư viện H5P Hub" data-hub-picker-frame></iframe>
+<script defer src="/hub-picker.js?v={{ filemtime(public_path('hub-picker.js')) }}"></script>
+@endif
 <x-modal id="activity-create" title="Thêm hoạt động H5P">
 @if($tools->isEmpty())<p>Quản trị viên cần đăng ký công cụ LTI trước.</p>@else
 @include('activity-form', ['item' => null])
@@ -141,7 +154,7 @@
 <label>Học viên<select name="user_id" required>@foreach($learners as $learner)<option value="{{ $learner->id }}">{{ $learner->name }} ({{ $learner->email }})</option>@endforeach</select></label>
 <label>Hoạt động<select name="activity_id" required>@foreach($activities as $activity)<option value="{{ $activity->id }}">{{ $activity->title }}{{ $activity->published ? '' : ' (bản nháp)' }}</option>@endforeach</select></label>
 <p>Cấp/thu hồi riêng được giữ qua các đợt giao hàng loạt. “Theo đợt giao” bỏ ngoại lệ và áp dụng lại trạng thái của đợt giao gần nhất cho người này.</p>
-<div class="row"><button name="granted" value="1">Cấp quyền riêng</button><button class="outline" name="granted" value="0">Thu hồi riêng</button><button class="outline" name="mode" value="inherit">Theo đợt giao</button></div>
+<div class="actions"><button name="granted" value="1">Cấp quyền riêng</button><button class="outline" name="granted" value="0">Thu hồi riêng</button><button class="outline" name="mode" value="inherit">Theo đợt giao</button></div>
 </form>
 @endif
 @forelse($assignments as $assignment)
@@ -154,7 +167,7 @@
 @elseif($screen === 'settings' && $manage)
 @include('course-management')
 <h2 class="section-title">Cài đặt khóa học</h2>
-<div class="grid management">
+<div class="actions">
 <x-modal id="course-edit" title="Sửa thông tin"><form method="post" action="/courses/{{ $course->id }}" class="fields">@csrf<input type="hidden" name="_modal" value="course-edit">
 <label>Tên khóa học<input name="title" value="{{ $course->title }}" maxlength="255" required></label><label>Mô tả<textarea name="description">{{ $course->description }}</textarea></label><button>Lưu thay đổi</button></form></x-modal>
 <x-modal id="course-delete" title="Xóa khóa học"><form method="post" action="/courses/{{ $course->id }}" class="fields">@csrf<input type="hidden" name="_modal" value="course-delete"> @method('DELETE')

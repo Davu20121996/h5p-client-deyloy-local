@@ -7,7 +7,7 @@
 <label>Bài học<select name="activity_id"><option value="">Tất cả bài</option>@foreach($activities as $activity)<option value="{{ $activity->id }}" @selected(request('activity_id') == $activity->id)>{{ $activity->title }}</option>@endforeach</select></label>
 <label>Chế độ<select name="history"><option value="0" @selected(!request()->boolean('history'))>Điểm chính thức</option><option value="1" @selected(request()->boolean('history'))>Lịch sử kết quả</option></select></label>
 <label>Trạng thái<select name="result_status">@foreach(['all' => 'Tất cả trạng thái', 'not_reported' => 'Chưa nhận kết quả', 'in_progress' => 'Có kết quả chưa hoàn thành', 'completed' => 'Đã hoàn thành'] as $value => $label)<option value="{{ $value }}" @selected(request('result_status', 'all') === $value)>{{ $label }}</option>@endforeach</select></label>
-<div class="row"><button>Lọc kết quả</button><a class="link" href="/courses/{{ $course->id }}/report.csv?{{ http_build_query(request()->only(['classroom_id', 'activity_id', 'history', 'result_status'])) }}">Tải CSV</a></div>
+<div class="actions"><button>Lọc kết quả</button><a class="button-link" href="/courses/{{ $course->id }}/report.csv?{{ http_build_query(request()->only(['classroom_id', 'activity_id', 'history', 'result_status'])) }}">Tải CSV</a></div>
 </form>
 <section class="card table-wrap section"><table>
 <thead><tr><th>Học viên</th><th>Bài học</th><th>Điểm</th><th>Trạng thái</th><th>Thời gian UTC+7</th></tr></thead><tbody>

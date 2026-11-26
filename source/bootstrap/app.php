@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
-        $middleware->validateCsrfTokens(except: ['lti/authorize', 'lti/token', 'lti/courses/*/scores', 'lti/deep-link/return']);
+        $middleware->validateCsrfTokens(except: ['hub/provision', 'lti/authorize', 'lti/token', 'lti/courses/*/scores', 'lti/deep-link/return']);
         $middleware->redirectUsersTo('/');
     })
     ->withExceptions(function (Exceptions $exceptions) {
@@ -28,5 +28,5 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return $response;
         });
-        $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $e) => $request->is('lti/token', 'lti/courses/*') || $request->expectsJson());
+        $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $e) => $request->is('hub/provision', 'lti/token', 'lti/courses/*') || $request->expectsJson());
     })->create();

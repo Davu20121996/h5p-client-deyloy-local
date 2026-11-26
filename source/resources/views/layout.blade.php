@@ -13,7 +13,7 @@
 @auth
     @php
         $links = ['/' => 'Khóa học'];
-        if (in_array(auth()->user()->role, ['admin', 'tenant_admin', 'teacher'], true)) {
+        if (in_array(auth()->user()->role, ['tenant_admin', 'teacher'], true)) {
             $links['/reports'] = 'Báo cáo';
         }
         if (!empty($course)) {
@@ -23,10 +23,8 @@
                 $links += [$base.'/enrollment' => 'Ghi danh', $base.'/settings' => 'Cài đặt khóa học'];
             }
         }
-        if (in_array(auth()->user()->role, ['admin', 'tenant_admin'], true)) {
-            if (auth()->user()->role === 'tenant_admin') {
-                $links['/classrooms'] = 'Lớp học';
-            }
+        if (auth()->user()->role === 'tenant_admin') {
+            $links['/classrooms'] = 'Lớp học';
             $links['/admin/tenants'] = 'Tổ chức';
             $links += ['/admin/users' => 'Tài khoản', '/admin/tools' => 'Công cụ LTI', '/admin/logs' => 'Nhật ký LTI'];
         }

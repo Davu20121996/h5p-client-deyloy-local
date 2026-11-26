@@ -26,7 +26,6 @@ FROM php-build AS app
 COPY --from=assets /work/public/build ./public/build
 COPY docker/opcache.production.ini /usr/local/etc/php/conf.d/zz-opcache.ini
 COPY docker/production-init.sh /usr/local/bin/production-init.sh
-COPY docker/bootstrap-admin.php /usr/local/bin/bootstrap-admin.php
 RUN test ! -e public/storage && ln -s /var/www/app/storage/app/public public/storage
 CMD ["php-fpm"]
 

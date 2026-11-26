@@ -112,6 +112,6 @@ echo 'Preparing the database...'
 "${compose[@]}" exec -T app php artisan migrate --force
 "${compose[@]}" exec -T app php artisan lti:rotate-key --if-missing
 
-"${compose[@]}" exec -T -e "ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}" app php artisan db:seed --force
+"${compose[@]}" exec -T app php artisan db:seed --force
 
 printf '\nSetup complete. Open %s\n' "$APP_URL"

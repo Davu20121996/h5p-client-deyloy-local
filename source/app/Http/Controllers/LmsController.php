@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\ActivityAssignments;
 use App\Services\Gradebook;
 use App\Services\LearningAccess;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -13,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class LmsController extends Controller
@@ -25,7 +25,10 @@ class LmsController extends Controller
         $key = 'login:'.hash('sha256', $credentials['email'].'|'.$request->ip());
         abort_if(RateLimiter::tooManyAttempts($key, 5), 429);
         RateLimiter::hit($key, 60);
-        if (! Auth::attempt($credentials + ['locked' => false])) {
+        if (! Auth::attempt($credentials + [
+            'locked' => false,
+            fn (Builder $query) => $query->whereNotNull('tenant_id')->whereIn('role', ['tenant_admin', 'teacher', 'student']),
+        ])) {
             throw ValidationException::withMessages(['email' => 'Thông tin đăng nhập không hợp lệ.']);
         }
         RateLimiter::clear($key);
@@ -276,100 +279,35 @@ class LmsController extends Controller
 
     public function admin(string $screen = 'users')
     {
-        $user = Auth::user();
-        abort_unless(! $user->locked && ($user->role === 'admin' || ($user->role === 'tenant_admin' && $user->tenant_id)), 403);
-        $platform = $user->role === 'admin';
+        $this->requireTenantAdmin();
+        $tenant = Auth::user()->tenant_id;
 
         return $this->screen('admin', [
-            'platform' => $platform,
             'roles' => $screen === 'users' ? DB::table('roles')->pluck('name', 'code') : collect(),
-            'tenants' => $screen === 'tenants'
-                ? DB::table('tenants')->when(! $platform, fn ($query) => $query->where('id', $user->tenant_id))->orderBy('name')->get()
-                : collect(),
-            'tenantUsers' => $platform && $screen === 'tenants'
-                ? DB::table('users')->whereNotNull('tenant_id')->whereIn('role', ['tenant_admin', 'teacher', 'student'])
-                    ->select('id', 'tenant_id', 'name', 'email', 'role', 'locked')->orderBy('name')->get()->groupBy('tenant_id')
-                : collect(),
+            'organization' => $screen === 'tenants' ? DB::table('tenants')->where('id', $tenant)->firstOrFail() : null,
             'screen' => $screen,
             'userGroups' => $screen !== 'users' ? collect() : DB::table('users')
-                ->leftJoin('tenants', 'tenants.id', '=', 'users.tenant_id')
-                ->when(! $platform, fn ($query) => $query->where('users.tenant_id', $user->tenant_id))
-                ->select('users.id', 'users.name', 'users.email', 'users.role', 'users.locked', 'users.tenant_id', 'tenants.name as tenant_name')
-                ->orderBy('tenants.name')->orderBy('users.name')->get()->groupBy('tenant_id'),
+                ->join('tenants', 'tenants.id', '=', 'users.tenant_id')
+                ->where('users.tenant_id', $tenant)
+                ->select('users.id', 'users.name', 'users.email', 'users.role', 'users.locked', 'tenants.name as tenant_name')
+                ->orderBy('users.name')->get()->groupBy('tenant_name'),
             'toolGroups' => $screen !== 'tools' ? collect() : DB::table('lti_registrations as tools')
-                ->leftJoin('tenants', 'tenants.id', '=', 'tools.tenant_id')
-                ->when(! $platform, fn ($query) => $query->where('tools.tenant_id', $user->tenant_id))
-                ->orderBy('tenants.name')->orderBy('tools.name')
-                ->get(['tools.*', 'tenants.name as tenant_name'])->groupBy('tenant_id'),
+                ->join('tenants', 'tenants.id', '=', 'tools.tenant_id')
+                ->where('tools.tenant_id', $tenant)
+                ->orderBy('tools.name')->get(['tools.*', 'tenants.name as tenant_name'])->groupBy('tenant_name'),
             'logGroups' => $screen !== 'logs' ? collect() : DB::table('audit_logs as logs')
-                ->leftJoin('users as actor', 'actor.id', '=', 'logs.user_id')
-                ->leftJoin('users as member', function ($join) {
-                    $join->on('member.id', '=', 'logs.resource_id')->where('logs.event', 'tenant.manager_granted');
-                })
-                ->leftJoin('tenants', DB::raw('coalesce(member.tenant_id, actor.tenant_id)'), '=', 'tenants.id')
-                ->when(! $platform, fn ($query) => $query->where('tenants.id', $user->tenant_id))
+                ->join('users as actor', 'actor.id', '=', 'logs.user_id')
+                ->join('tenants', 'tenants.id', '=', 'actor.tenant_id')
+                ->where('actor.tenant_id', $tenant)
                 ->latest('logs.id')->limit(20)
-                ->get(['logs.*', 'tenants.id as tenant_id', 'tenants.name as tenant_name'])->groupBy('tenant_id'),
+                ->get(['logs.*', 'tenants.name as tenant_name'])->groupBy('tenant_name'),
         ]);
     }
 
-    public function grantTenantManager(int $tenant, int $user)
+    public function updateTenantWelcome(Request $request)
     {
-        abort_unless(Auth::user()->role === 'admin' && ! Auth::user()->locked, 403);
-        DB::transaction(function () use ($tenant, $user) {
-            $member = DB::table('users')->where('tenant_id', $tenant)->where('id', $user)
-                ->whereIn('role', ['teacher', 'student', 'tenant_admin'])->lockForUpdate()->firstOrFail();
-            if ($member->locked) {
-                throw ValidationException::withMessages([
-                    'user' => 'Hãy mở khóa tài khoản trước khi cấp quyền quản lý.',
-                ]);
-            }
-            if ($member->role !== 'tenant_admin') {
-                DB::table('users')->where('id', $user)->update(['role' => 'tenant_admin', 'updated_at' => now()]);
-                DB::table('audit_logs')->insert(['event' => 'tenant.manager_granted', 'user_id' => Auth::id(), 'resource_id' => $user]);
-            }
-        });
-
-        return $this->respond(redirect('/admin/tenants'), 'Đã cấp quyền quản lý tổ chức.');
-    }
-
-    public function createTenant(Request $request)
-    {
-        abort_unless(Auth::user()->role === 'admin' && ! Auth::user()->locked, 403);
-        if (is_string($request->input('email'))) {
-            $request->merge(['email' => strtolower($request->input('email'))]);
-        }
-        $data = $request->validate([
-            'tenant_name' => 'required|string|max:255|unique:tenants,name',
-            'welcome_message' => 'nullable|string|max:1000',
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users',
-            'password' => 'required|string|min:12|max:1024',
-        ]);
-        DB::transaction(function () use ($data) {
-            $tenant = DB::table('tenants')->insertGetId([
-                'name' => $data['tenant_name'], 'created_at' => now(), 'updated_at' => now(),
-                'welcome_message' => $data['welcome_message'] ?? null,
-            ]);
-            DB::table('users')->insert([
-                'tenant_id' => $tenant, 'role' => 'tenant_admin', 'name' => $data['name'],
-                'email' => $data['email'], 'password' => Hash::make($data['password']),
-                'created_at' => now(), 'updated_at' => now(),
-            ]);
-        });
-
-        return $this->respond(redirect('/admin/tenants'), 'Đã tạo tổ chức và tài khoản quản lý.');
-    }
-
-    public function updateTenantWelcome(Request $request, ?int $tenant = null)
-    {
-        if ($tenant === null) {
-            $this->requireTenantAdmin();
-            $tenant = Auth::user()->tenant_id;
-        } else {
-            abort_unless(Auth::user()->role === 'admin' && ! Auth::user()->locked, 403);
-            DB::table('tenants')->where('id', $tenant)->firstOrFail();
-        }
+        $this->requireTenantAdmin();
+        $tenant = Auth::user()->tenant_id;
 
         $data = $request->validate(['welcome_message' => 'nullable|string|max:1000']);
 
@@ -410,42 +348,6 @@ class LmsController extends Controller
         });
 
         return $this->respond(back(), 'Đã cập nhật tài khoản.');
-    }
-
-    public function tool(Request $request, ?int $id = null)
-    {
-        $this->requireTenantAdmin();
-        $registration = $id === null ? null : DB::table('lti_registrations')->where('id', $id)->where('tenant_id', Auth::user()->tenant_id)->firstOrFail();
-        $clientId = Rule::unique('lti_registrations');
-        if ($registration) {
-            $clientId->ignore($registration->id);
-        }
-        $data = $request->validate([
-            'name' => 'required|string|max:255', 'client_id' => ['required', 'string', 'max:255', $clientId],
-            'deployment_id' => 'required|string|max:255', 'login_url' => 'required|url:https|max:2048',
-            'redirect_uri' => 'required|url:https|max:2048', 'public_key' => 'required|string|max:8192',
-            'deep_link_url' => 'nullable|url:https|max:2048',
-        ]);
-        if (! empty($data['deep_link_url']) && LearningAccess::origin($data['deep_link_url']) !== LearningAccess::origin($data['redirect_uri'])) {
-            throw ValidationException::withMessages(['deep_link_url' => 'URL chọn bài phải cùng origin với Redirect URI của Hub.']);
-        }
-        if ($registration && ($registration->client_id !== $data['client_id'] || $registration->deployment_id !== $data['deployment_id'] || $registration->redirect_uri !== $data['redirect_uri']) && DB::table('activities')->where('lti_registration_id', $id)->exists()) {
-            throw ValidationException::withMessages(['client_id' => 'Kết nối đã được dùng. Tạo kết nối mới nếu đổi định danh hoặc Redirect URI.']);
-        }
-        $key = openssl_pkey_get_public($data['public_key']);
-        $details = $key ? openssl_pkey_get_details($key) : false;
-        if (! $details || $details['type'] !== OPENSSL_KEYTYPE_RSA || $details['bits'] < 2048) {
-            throw ValidationException::withMessages(['public_key' => 'Cần khóa công khai RSA từ 2048 bit.']);
-        }
-        $data['public_key'] = $details['key'];
-        if ($registration) {
-            DB::table('lti_registrations')->where('id', $id)->update($data);
-
-            return $this->respond(back(), 'Đã cập nhật công cụ.');
-        }
-        DB::table('lti_registrations')->insert($data + ['tenant_id' => Auth::user()->tenant_id]);
-
-        return $this->respond(back(), 'Đã đăng ký công cụ.');
     }
 
     private function screen(string $view, array $data)

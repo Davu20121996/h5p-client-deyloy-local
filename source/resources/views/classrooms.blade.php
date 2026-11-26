@@ -14,7 +14,7 @@
 <section class="card section">
 <h2>{{ $classroom->name }} @if($classroom->archived_at)<span class="pill">Đã lưu trữ</span>@endif</h2><p>{{ $classroom->description }}</p>
 <p>{{ $members->get($classroom->id, collect())->count() }} học viên</p>
-<div class="row">
+<div class="actions">
 <x-modal :id="'classroom-edit-'.$classroom->id" title="Sửa lớp học">
 <form method="post" action="/classrooms/{{ $classroom->id }}" class="fields">@csrf
 <label>Tên lớp<input name="name" value="{{ $classroom->name }}" maxlength="255" required></label>
