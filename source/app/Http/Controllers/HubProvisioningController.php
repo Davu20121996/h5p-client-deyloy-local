@@ -15,6 +15,16 @@ class HubProvisioningController extends Controller
 {
     public function __invoke(Request $request): JsonResponse
     {
+        return $this->provision($request, false);
+    }
+
+    public function account(Request $request): JsonResponse
+    {
+        return $this->provision($request, true);
+    }
+
+    private function provision(Request $request, bool $withSubject): JsonResponse
+    {
         $secret = HubProvisioningConfig::secret();
         $origin = HubProvisioningConfig::origin();
         abort_unless($secret !== null && $origin, 503, 'Client chưa cấu hình nhận tài khoản từ Hub.');
@@ -25,13 +35,15 @@ class HubProvisioningController extends Controller
             'tenant_name' => 'required|string|max:255',
             'manager_name' => 'required|string|max:255',
             'manager_email' => 'nullable|required_without:manager_username|email|max:255',
-            'manager_username' => ['nullable', 'required_without:manager_email', 'string', 'min:3', 'max:64', 'regex:/\A[a-zA-Z0-9][a-zA-Z0-9._-]*\z/'],
+            'manager_username' => ['nullable', $withSubject ? 'required' : 'required_without:manager_email', 'string', 'min:3', 'max:64', 'regex:/\A(?![0-9]+\z)[a-zA-Z0-9][a-zA-Z0-9._-]*\z/'],
+            'account_role' => $withSubject ? 'required|in:teacher,tenant_admin' : 'prohibited',
             'client_id' => 'required|string|max:255',
             'deployment_id' => 'required|string|max:255',
             'login_url' => 'required|url:https|max:2048',
             'launch_url' => 'required|url:https|max:2048',
             'public_key' => 'required|string|max:8192',
         ]);
+        $role = $data['account_role'] ?? 'tenant_admin';
         foreach (['login_url', 'launch_url'] as $field) {
             if (LearningAccess::origin($data[$field]) !== $origin) {
                 throw ValidationException::withMessages([$field => 'URL phải thuộc Hub đã cấu hình.']);
@@ -44,7 +56,7 @@ class HubProvisioningController extends Controller
         }
 
         try {
-            $mustChangePassword = DB::transaction(function () use ($data, $details, $origin): bool {
+            $account = DB::transaction(function () use ($data, $details, $origin, $role): array {
                 $registration = DB::table('lti_registrations')->where('client_id', $data['client_id'])->lockForUpdate()->first();
                 $tenant = DB::table('tenants')->where('hub_tenant_id', $data['hub_tenant_id'])->lockForUpdate()->first();
                 if (! $tenant && $registration) {
@@ -83,28 +95,28 @@ class HubProvisioningController extends Controller
                     }
                 })->orderBy('id')->lockForUpdate()->get();
                 abort_if($matches->count() > 1, 409);
-                $manager = $matches->first();
-                if ($manager) {
-                    abort_unless((int) $manager->tenant_id === (int) $tenantId && $manager->role === 'tenant_admin' && ! $manager->locked, 409);
-                    abort_if($username !== null && $manager->username !== null && $manager->username !== $username, 409);
-                    abort_if($email !== null && $manager->email !== null && strtolower($manager->email) !== $email, 409);
-                    DB::table('users')->where('id', $manager->id)->update([
-                        'username' => $manager->username ?? $username,
-                        'email' => $manager->email ?? $email,
+                $user = $matches->first();
+                if ($user) {
+                    abort_unless((int) $user->tenant_id === (int) $tenantId && $user->role === $role && ! $user->locked, 409);
+                    abort_if($username !== null && $user->username !== null && $user->username !== $username, 409);
+                    abort_if($email !== null && $user->email !== null && strtolower($user->email) !== $email, 409);
+                    DB::table('users')->where('id', $user->id)->update([
+                        'username' => $user->username ?? $username,
+                        'email' => $user->email ?? $email,
                         'updated_at' => now(),
                     ]);
 
-                    return (bool) $manager->must_change_password;
+                    return ['subject' => (string) $user->id, 'must_change_password' => (bool) $user->must_change_password];
                 }
                 $password = (string) config('hub.initial_password');
-                abort_unless(strlen($password) >= 12 && strlen($password) <= 72, 503, 'Client chưa cấu hình mật khẩu ban đầu cho Tenant Admin.');
-                DB::table('users')->insert([
+                abort_unless(strlen($password) >= 12 && strlen($password) <= 72, 503, 'Client chưa cấu hình mật khẩu ban đầu.');
+                $userId = DB::table('users')->insertGetId([
                     'tenant_id' => $tenantId, 'name' => $data['manager_name'], 'email' => $email, 'username' => $username,
-                    'role' => 'tenant_admin', 'password' => Hash::make($password), 'must_change_password' => true,
+                    'role' => $role, 'password' => Hash::make($password), 'must_change_password' => true,
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
 
-                return true;
+                return ['subject' => (string) $userId, 'must_change_password' => true];
             }, 3);
         } catch (UniqueConstraintViolationException) {
             abort(409);
@@ -112,8 +124,8 @@ class HubProvisioningController extends Controller
 
         return response()->json([
             'account_synced' => true,
-            'must_change_password' => $mustChangePassword,
+            'must_change_password' => $account['must_change_password'],
             'password_issued' => false,
-        ])->header('Cache-Control', 'no-store');
+        ] + ($withSubject ? ['subject' => $account['subject'], 'role' => $role] : []))->header('Cache-Control', 'no-store');
     }
 }

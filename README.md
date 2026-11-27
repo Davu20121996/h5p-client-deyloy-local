@@ -23,6 +23,8 @@
 
 Khi Client trả HTTP 503 từ `/hub/provision`, chạy `php artisan lms:hub-provision-status` trong container để xem cấu hình còn thiếu. Với Dockhand, cập nhật biến trong stack rồi triển khai lại. Để cấp tài khoản chỉ có tên đăng nhập, màn hình **Quản lý đơn vị → Hồ sơ → Cấp tài khoản và đồng bộ LTI** phía Hub cần gửi trường `manager_username`.
 
+Nút **Đồng bộ tài khoản Client** ở tab **Người dùng LMS** dùng `POST /hub/provision/accounts` với `manager_username` và `account_role` là `teacher` hoặc `tenant_admin`. Client trả `subject` dạng chuỗi số, trùng với claim `sub` của lượt mở LTI. Hub dùng mã này để liên kết người dùng và học liệu với tài khoản Client. Client trả `password_issued: false` và dùng mật khẩu ban đầu cấu hình tại Client cho tài khoản mới.
+
 ### Chọn bài từ Hub
 
 Giáo viên vào **Khóa học → Hoạt động H5P** và chọn **Mở thư viện H5P**. Hub được mở trong khung của Client. Client kiểm tra phản hồi đã ký và phiên chọn, tạo một hoạt động nháp rồi cập nhật danh sách. Học sinh mở bài đã giao trong khung bài học. Khi trình duyệt chặn cookie nhúng, dùng **Mở ở tab mới**.

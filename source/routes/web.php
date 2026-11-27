@@ -11,6 +11,7 @@ Route::get('/', [LmsController::class, 'dashboard'])->middleware(['auth.session'
 Route::post('/login', [LmsController::class, 'login'])->middleware(['guest', 'throttle:20,1']);
 Route::post('/logout', [LmsController::class, 'logout'])->middleware(['auth', 'auth.session']);
 Route::post('/hub/provision', HubProvisioningController::class)->middleware('throttle:15,1');
+Route::post('/hub/provision/accounts', [HubProvisioningController::class, 'account'])->middleware('throttle:15,1');
 Route::middleware(['auth', 'auth.session', RequireClientAccount::class])->group(function () {
     Route::get('/account/profile', [LearningManagementController::class, 'profile']);
     Route::put('/account/profile', [LearningManagementController::class, 'updateProfile'])->middleware('throttle:10,1');

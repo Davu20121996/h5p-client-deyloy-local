@@ -118,6 +118,30 @@ class HubProvisioningTest extends TestCase
         $this->assertDatabaseCount('users', 1);
     }
 
+    public function test_hub_username_sync_returns_a_stable_lti_subject_and_preserves_client_passwords(): void
+    {
+        foreach (['gvsmb' => 'teacher', 'tenant-admin-smb' => 'tenant_admin'] as $username => $role) {
+            $data = $this->payload([
+                'manager_email' => null, 'manager_username' => $username,
+                'account_role' => $role, 'password' => 'hub-supplied-password',
+            ]);
+            $this->withToken(self::SECRET)->postJson('/hub/provision', $data)->assertUnprocessable();
+            $response = $this->postJson('/hub/provision/accounts', $data)->assertOk()
+                ->assertJson(['role' => $role, 'account_synced' => true, 'must_change_password' => true, 'password_issued' => false]);
+            $user = User::where('username', $username)->sole();
+            $response->assertJsonPath('subject', (string) $user->id);
+            $this->assertTrue(Hash::check('initial-manager-password', $user->password));
+            $user->forceFill(['password' => 'custom-client-password', 'must_change_password' => false])->save();
+            $this->postJson('/hub/provision/accounts', $data)->assertOk()
+                ->assertJson(['subject' => (string) $user->id, 'must_change_password' => false, 'password_issued' => false]);
+            $this->assertTrue(Hash::check('custom-client-password', $user->fresh()->password));
+            $wrongRole = $role === 'teacher' ? 'tenant_admin' : 'teacher';
+            $this->postJson('/hub/provision/accounts', array_replace($data, ['account_role' => $wrongRole]))->assertConflict();
+        }
+        $this->assertDatabaseCount('users', 2);
+        $this->assertDatabaseCount('tenants', 1);
+    }
+
     public function test_system_admin_uses_hub_and_cannot_log_in_to_client(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'password' => 'admin-test-password']);
