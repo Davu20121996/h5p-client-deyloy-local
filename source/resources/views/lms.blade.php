@@ -16,6 +16,12 @@
         <label>Tên đăng nhập hoặc email<input type="text" name="email" value="{{ old('email') }}" maxlength="255" autocomplete="username" autocapitalize="none" required></label>
         <label>Mật khẩu<input name="password" type="password" autocomplete="current-password" required></label>
         <button>Đăng nhập</button>
+        @php($forumUrl = config('services.discourse.url'))
+        @if(is_string($forumUrl) && filter_var($forumUrl, FILTER_VALIDATE_URL) && parse_url($forumUrl, PHP_URL_SCHEME) === 'https')
+            <a class="button-link" href="{{ rtrim($forumUrl, '/').'/login' }}">Diễn đàn · Đăng nhập bằng Zalo</a>
+        @else
+            <button type="button" class="outline" disabled>Diễn đàn chưa mở</button>
+        @endif
     </form></section>
 </div>
 <section id="workflow" class="workflow" aria-labelledby="workflow-title">

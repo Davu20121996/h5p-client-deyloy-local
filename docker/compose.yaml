@@ -8,6 +8,7 @@ services:
       - php_vendor:/var/www/app/vendor
     environment:
       APP_URL: ${APP_URL:?Run bash setup.sh first}
+      DISCOURSE_URL: ${DISCOURSE_URL:-}
       HUB_BASE_URL: ${HUB_BASE_URL:-}
       HUB_PROVISIONING_SECRET: ${HUB_PROVISIONING_SECRET:-}
       CLIENT_TENANT_ADMIN_INITIAL_PASSWORD: ${CLIENT_TENANT_ADMIN_INITIAL_PASSWORD:-}

@@ -1,0 +1,4 @@
+login:
+  zalo_button_title:
+    default: "Đăng nhập bằng Zalo"
+    client: true

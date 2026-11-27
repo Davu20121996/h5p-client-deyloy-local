@@ -16,4 +16,20 @@ class ExampleTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    public function test_the_login_screen_links_to_the_configured_discourse_login(): void
+    {
+        config(['services.discourse.url' => 'https://forum.example.test/']);
+
+        $this->get('/')->assertOk()
+            ->assertSee('Diễn đàn · Đăng nhập bằng Zalo')
+            ->assertSee('href="https://forum.example.test/login"', false);
+    }
+
+    public function test_the_forum_button_is_disabled_until_the_forum_is_configured(): void
+    {
+        config(['services.discourse.url' => null]);
+
+        $this->get('/')->assertOk()->assertSee('disabled>Diễn đàn chưa mở</button>', false);
+    }
 }
