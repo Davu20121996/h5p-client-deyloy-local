@@ -108,12 +108,17 @@ class LearningManagementTest extends TestCase
         $data = ['create_account' => 1, 'name' => 'New Student', 'email' => 'NewStudent@example.com', 'password' => 'student-test-password'];
         $this->postJson('/classrooms/'.$other.'/students', $data)->assertNotFound();
         $this->postJson('/classrooms/'.$class.'/students', ['email' => $this->foreign->email])->assertUnprocessable();
-        $this->post('/classrooms/'.$class.'/students', $data)->assertRedirect()->assertSessionHasNoErrors();
+        $page = '/courses/1/enrollment';
+        $create = '/courses/1/classroom-students';
+        $this->get($page)->assertOk()->assertSee('Giao bài cho lớp')->assertSee('Tạo học viên cho lớp')
+            ->assertDontSee('Other classroom')->assertDontSee('Tất cả học viên đã ghi danh')
+            ->assertDontSee('Ngoại lệ cho từng học viên')->assertDontSee('Thêm từng học viên vào khóa học');
+        $this->postJson($create, $data + ['classroom_id' => $other])->assertNotFound();
+        $this->from($page)->post($create, $data + ['classroom_id' => $class])->assertRedirect($page)->assertSessionHasNoErrors();
         $student = User::where('email', 'newstudent@example.com')->sole();
         $this->assertSame('student', $student->role);
         $this->assertSame(1, $student->tenant_id);
         $this->assertDatabaseHas('classroom_members', ['classroom_id' => $class, 'user_id' => $student->id]);
-        $this->get('/courses/1/enrollment')->assertOk()->assertSee('Ghi danh và thêm vào lớp')->assertDontSee('Other classroom');
 
         $this->post('/classrooms/'.$class.'/students', ['email' => $this->student->email])->assertRedirect();
         $this->assertDatabaseHas('classroom_members', ['classroom_id' => $class, 'user_id' => $this->student->id]);
@@ -125,6 +130,12 @@ class LearningManagementTest extends TestCase
         $this->assertDatabaseHas('enrollments', ['course_id' => 1, 'user_id' => $extra->id]);
         $this->assertDatabaseHas('course_classrooms', ['course_id' => 1, 'classroom_id' => $class]);
         $this->assertDatabaseMissing('enrollments', ['course_id' => 1, 'user_id' => $student->id]);
+        $this->from($page)->post('/courses/1/assign-bulk', ['activity_id' => 1, 'classroom_id' => $class, 'granted' => 1])
+            ->assertRedirect($page)->assertSessionHasNoErrors();
+        $this->post('/logout')->assertRedirect();
+        $this->post('/login', ['email' => $student->email, 'password' => $data['password']])->assertRedirect('/');
+        $this->get('/courses/1/activities')->assertOk()->assertSee('Lesson A');
+        $this->post('/logout')->assertRedirect();
 
         $this->actingAs($this->manager)->post('/classrooms/'.$class.'/archive', ['archived' => 1])->assertRedirect();
         $this->actingAs($this->teacher)->postJson('/classrooms/'.$class.'/students', ['email' => $extra->email])->assertUnprocessable();
@@ -178,7 +189,7 @@ class LearningManagementTest extends TestCase
         ]);
 
         $this->actingAs($this->teacher)->get('/courses/1/enrollment')->assertOk()
-            ->assertSee('Lớp Class 1')->assertDontSee('Unassigned class');
+            ->assertSee('>Class 1</option>', false)->assertDontSee('Unassigned class');
         $this->postJson('/courses/1/assign-bulk', ['activity_id' => 1, 'classroom_id' => $otherClass, 'granted' => 1])->assertNotFound();
         $this->postJson('/courses/1/assign-bulk', ['activity_id' => 1, 'granted' => 1])->assertUnprocessable();
         $this->post('/courses/1/assign-bulk', ['activity_id' => 1, 'classroom_id' => $class, 'granted' => 1])->assertRedirect();
@@ -258,6 +269,27 @@ class LearningManagementTest extends TestCase
         $this->get($list)->assertSee('<button class="outline">Xuất bản</button>', false);
         $this->post($activity, ['published' => 1])->assertRedirect();
         $this->assertDatabaseHas('activities', ['id' => 1, 'published' => true]);
+    }
+
+    public function test_enrollment_cannot_select_or_change_assignments_for_archived_activities(): void
+    {
+        $this->actingAs($this->teacher);
+        DB::table('classrooms')->where('id', $this->classroom())->update(['teacher_id' => $this->teacher->id]);
+        $page = '/courses/1/enrollment';
+        $this->get($page)->assertSee('<option value="1">Lesson A</option>', false);
+        $this->post('/courses/1/activities/1/archive', ['archived' => 1])->assertRedirect();
+        $this->get($page)->assertOk()
+            ->assertDontSee('name="activity_id"', false)
+            ->assertSee('Tạo hoạt động hoặc khôi phục bài đã lưu trữ để giao bài.');
+
+        $this->from($page)->post('/courses/1/assign-bulk', ['activity_id' => 1, 'classroom_id' => 'course', 'granted' => 0])
+            ->assertRedirect($page)->assertSessionHasErrors('activity_id');
+        $this->from($page)->post('/courses/1/assign', ['activity_id' => 1, 'user_id' => $this->student->id, 'granted' => 0])
+            ->assertRedirect($page)->assertSessionHasErrors('activity_id');
+        $this->assertDatabaseHas('activity_assignments', ['activity_id' => 1, 'user_id' => $this->student->id]);
+
+        $this->post('/courses/1/activities/1/archive', ['archived' => 0])->assertRedirect();
+        $this->get($page)->assertSee('<option value="1">Lesson A · Bản nháp</option>', false);
     }
 
     public function test_grade_policy_keeps_pending_progress_separate_and_reports_are_scoped(): void

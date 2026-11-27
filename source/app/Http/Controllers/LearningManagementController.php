@@ -63,6 +63,15 @@ class LearningManagementController extends Controller
         return back()->with('status', 'Đã lưu lớp học.');
     }
 
+    public function createCourseClassroomStudent(Request $request, int $course)
+    {
+        LearningAccess::manageCourse($course);
+        $data = $request->validate(['classroom_id' => 'required|integer']);
+        $request->merge(['create_account' => true]);
+
+        return $this->addClassroomStudent($request, (int) $data['classroom_id']);
+    }
+
     public function addClassroomStudent(Request $request, int $classroom)
     {
         $query = LearningAccess::classrooms()->where('id', $classroom);
@@ -78,7 +87,9 @@ class LearningManagementController extends Controller
         try {
             DB::transaction(function () use ($query, $data, $create, $classroom) {
                 $group = $query->lockForUpdate()->firstOrFail();
-                abort_if($group->archived_at, 422, 'Khôi phục lớp trước khi thêm học viên.');
+                if ($group->archived_at) {
+                    throw ValidationException::withMessages(['classroom_id' => 'Lớp đã lưu trữ. Hãy chọn lớp đang hoạt động.']);
+                }
                 if ($create) {
                     $id = DB::table('users')->insertGetId([
                         'tenant_id' => $group->tenant_id, 'role' => 'student', 'name' => $data['name'], 'email' => $data['email'],
@@ -183,9 +194,11 @@ class LearningManagementController extends Controller
         if ($data['audience'] === 'classroom' && $granted) {
             $message = DB::transaction(function () use ($course, $activityId, $data) {
                 $classroom = LearningAccess::classrooms()->where('id', $data['classroom_id'])->lockForUpdate()->firstOrFail();
-                abort_if($classroom->archived_at, 422, 'Khôi phục lớp trước khi giao bài mới.');
+                if ($classroom->archived_at) {
+                    throw ValidationException::withMessages(['classroom_id' => 'Lớp đã lưu trữ. Hãy chọn lớp đang hoạt động.']);
+                }
                 $activity = DB::table('activities')->where('course_id', $course)->where('id', $activityId)->lockForUpdate()->firstOrFail();
-                abort_if($activity->archived_at, 422, 'Khôi phục bài học trước khi giao cho lớp.');
+                ActivityAssignments::ensureAssignable($activity);
                 $students = $this->activeClassroomStudents($classroom);
                 if ($students === []) {
                     return 'Lớp '.$classroom->name.' chưa có học viên đang hoạt động.';
@@ -214,7 +227,7 @@ class LearningManagementController extends Controller
             return back()->with('status', $message);
         }
 
-        DB::table('activities')->where('course_id', $course)->where('id', $activityId)->firstOrFail();
+        ActivityAssignments::ensureAssignable(DB::table('activities')->where('course_id', $course)->where('id', $activityId)->firstOrFail());
         if ($data['audience'] === 'classroom') {
             $group = LearningAccess::classrooms()->where('id', $data['classroom_id'])->firstOrFail();
         }

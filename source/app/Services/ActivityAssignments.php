@@ -3,13 +3,21 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ActivityAssignments
 {
+    public static function ensureAssignable(object $activity): void
+    {
+        if ($activity->archived_at) {
+            throw ValidationException::withMessages(['activity_id' => 'Bài đang lưu trữ. Hãy khôi phục bản nháp trước khi thay đổi giao bài.']);
+        }
+    }
+
     public static function individual(int $activity, int $user, ?bool $granted): void
     {
         DB::transaction(function () use ($activity, $user, $granted) {
-            DB::table('activities')->where('id', $activity)->lockForUpdate()->firstOrFail();
+            self::ensureAssignable(DB::table('activities')->where('id', $activity)->lockForUpdate()->firstOrFail());
             $key = ['activity_id' => $activity, 'user_id' => $user];
             $override = DB::table('activity_assignment_overrides')->where($key)->first();
             if ($granted === null) {
@@ -31,7 +39,7 @@ class ActivityAssignments
     public static function bulk(int $activity, array $users, bool $granted): int
     {
         return DB::transaction(function () use ($activity, $users, $granted) {
-            DB::table('activities')->where('id', $activity)->lockForUpdate()->firstOrFail();
+            self::ensureAssignable(DB::table('activities')->where('id', $activity)->lockForUpdate()->firstOrFail());
             $overrides = DB::table('activity_assignment_overrides')->where('activity_id', $activity)->whereIn('user_id', $users)->get()->keyBy('user_id');
             foreach ($users as $user) {
                 $key = ['activity_id' => $activity, 'user_id' => $user];

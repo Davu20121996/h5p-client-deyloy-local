@@ -128,16 +128,10 @@ class LmsController extends Controller
         return $this->screen('lms', [
             'course' => $course,
             'screen' => $screen,
-            'activities' => ! in_array($screen, ['activities', 'enrollment', 'grades'], true) ? collect() : DB::table('activities')->where('course_id', $id)->when($student, fn ($query) => $query->where('published', true)->whereNull('archived_at')->whereIn('id', self::assignedActivities(Auth::id())))->orderBy('sort_order')->orderBy('id')->get(),
-            'learners' => $screen !== 'enrollment' ? collect() : DB::table('enrollments')->join('users', 'users.id', '=', 'enrollments.user_id')->where('course_id', $id)->where('users.role', 'student')->select('users.id', 'users.name', 'users.email')->get(),
-            'availableLearners' => $screen === 'enrollment' && in_array(Auth::user()->role, ['teacher', 'tenant_admin'], true)
-                ? DB::table('users')->where('tenant_id', $course->tenant_id)->where('role', 'student')->where('locked', false)
-                    ->when(Auth::user()->role === 'teacher', fn ($query) => $query->whereIn('id', DB::table('classroom_members')
-                        ->whereIn('classroom_id', LearningAccess::classrooms()->whereNull('archived_at')->select('id'))->select('user_id')))
-                    ->whereNotIn('id', DB::table('enrollments')->where('course_id', $id)->select('user_id'))
-                    ->orderBy('name')->get(['name', 'email'])
-                : collect(),
-            'assignments' => $screen !== 'enrollment' ? collect() : DB::table('activity_assignments')->join('activities', 'activities.id', '=', 'activity_assignments.activity_id')->join('users', 'users.id', '=', 'activity_assignments.user_id')->where('activities.course_id', $id)->select('activities.title', 'users.name')->get(),
+            'activities' => ! in_array($screen, ['activities', 'enrollment', 'grades'], true) ? collect() : DB::table('activities')->where('course_id', $id)
+                ->when($screen === 'enrollment' || $student, fn ($query) => $query->whereNull('archived_at'))
+                ->when($student, fn ($query) => $query->where('published', true)->whereIn('id', self::assignedActivities(Auth::id())))
+                ->orderBy('sort_order')->orderBy('id')->get(),
             'tools' => $student || $screen !== 'activities' ? collect() : DB::table('lti_registrations')->where('tenant_id', $course->tenant_id)->select('id', 'name', 'deep_link_url')->get(),
             'grades' => Gradebook::filterStatus(request()->boolean('history') ? $history : ($screen === 'grades' ? Gradebook::overview($id, $filters['classroom_id'] ?? null, $filters['activity_id'] ?? null) : collect()), $filters['result_status'] ?? null),
             'classrooms' => $student ? collect() : LearningAccess::classrooms()->orderBy('name')->get(),
@@ -145,7 +139,6 @@ class LmsController extends Controller
             'teachers' => $student ? collect() : DB::table('users')->where('tenant_id', $course->tenant_id)->where('role', 'teacher')->get(['id', 'name', 'locked']),
             'primaryTeacher' => $student ? null : DB::table('users')->where('id', $course->teacher_id)->where('tenant_id', $course->tenant_id)->first(['name']),
             'coTeachers' => $student ? collect() : DB::table('course_teachers')->where('course_id', $id)->pluck('user_id'),
-            'assignmentOverrides' => $screen === 'enrollment' ? DB::table('activity_assignment_overrides')->join('activities', 'activities.id', '=', 'activity_assignment_overrides.activity_id')->join('users', 'users.id', '=', 'activity_assignment_overrides.user_id')->where('activities.course_id', $id)->get(['activities.title', 'users.name', 'activity_assignment_overrides.granted']) : collect(),
         ]);
     }
 
