@@ -113,6 +113,9 @@
 @if($manage)@include('course-management')@endif
 <h2 class="section-title">Ghi danh học viên</h2>
 @if($manage)
+@if(auth()->user()->role === 'teacher' && $classrooms->whereNull('archived_at')->isEmpty())
+<p>Bạn cần được phân công lớp đang hoạt động để ghi danh học viên.</p>
+@else
 <section class="card settings-card"><form method="post" action="/courses/{{ $course->id }}/enroll" class="fields">@csrf
 <label>Email học viên<input name="email" type="email" list="available-learners" value="{{ old('email') }}" required></label>
 <datalist id="available-learners">
@@ -120,7 +123,19 @@
     <option value="{{ $learner->email }}">{{ $learner->name }}</option>
 @endforeach
 </datalist>
-<button>Ghi danh</button></form></section>
+@if($classrooms->whereNull('archived_at')->isNotEmpty())
+<label>Lớp học<select name="classroom_id" required>
+    <option value="">Chọn lớp</option>
+    @foreach($classrooms->whereNull('archived_at') as $classroom)
+    <option value="{{ $classroom->id }}" @selected(old('classroom_id') == $classroom->id)>{{ $classroom->name }}</option>
+    @endforeach
+</select></label>
+<button>Ghi danh và thêm vào lớp</button>
+@else
+<button>Ghi danh vào khóa học</button>
+@endif
+</form></section>
+@endif
 @endif
 <h2 class="section-title">Học viên đã ghi danh <span class="pill">{{ $learners->count() }}</span></h2>
 @if($manage)<p><a class="link" href="/courses/{{ $course->id }}/roster.csv">Tải danh sách học viên CSV</a></p>@endif

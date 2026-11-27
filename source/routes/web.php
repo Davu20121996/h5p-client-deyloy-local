@@ -23,6 +23,7 @@ Route::middleware(['auth', 'auth.session', RequireClientAccount::class])->group(
     Route::get('/classrooms', [LearningManagementController::class, 'classrooms']);
     Route::post('/classrooms/{classroom?}', [LearningManagementController::class, 'saveClassroom'])->whereNumber('classroom');
     Route::put('/classrooms/{classroom}/members', [LearningManagementController::class, 'members'])->whereNumber('classroom');
+    Route::post('/classrooms/{classroom}/students', [LearningManagementController::class, 'addClassroomStudent'])->whereNumber('classroom');
     Route::post('/courses/{course}/classrooms', [LearningManagementController::class, 'courseClassroom'])->whereNumber('course');
     Route::post('/courses/{course}/teachers', [LearningManagementController::class, 'teachers'])->whereNumber('course');
     Route::post('/courses/{course}/assign-bulk', [LearningManagementController::class, 'bulkAssign'])->whereNumber('course');

@@ -6,6 +6,7 @@ use App\Services\ActivityAssignments;
 use App\Services\Gradebook;
 use App\Services\LearningAccess;
 use App\Services\ToolDiagnostics;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -18,13 +19,18 @@ class LearningManagementController extends Controller
 {
     public function classrooms()
     {
-        $tenant = LearningAccess::tenantManager();
+        $classrooms = LearningAccess::classrooms()->orderBy('name')->get();
+        $tenant = Auth::user()->tenant_id;
+        $tenantManager = Auth::user()->role === 'tenant_admin';
 
         return view('classrooms', [
-            'classrooms' => DB::table('classrooms')->where('tenant_id', $tenant)->orderBy('name')->get(),
-            'students' => DB::table('users')->where('tenant_id', $tenant)->where('role', 'student')->orderBy('name')->get(),
-            'members' => DB::table('classroom_members')->join('classrooms', 'classrooms.id', '=', 'classroom_members.classroom_id')
-                ->where('classrooms.tenant_id', $tenant)->get(['classroom_members.*'])->groupBy('classroom_id'),
+            'classrooms' => $classrooms,
+            'tenantManager' => $tenantManager,
+            'teachers' => $tenantManager ? DB::table('users')->where('tenant_id', $tenant)->where('role', 'teacher')->orderBy('name')->get(['id', 'name', 'locked'])->keyBy('id') : collect(),
+            'students' => $tenantManager ? DB::table('users')->where('tenant_id', $tenant)->where('role', 'student')->orderBy('name')->get(['id', 'name', 'email', 'username', 'locked']) : collect(),
+            'members' => DB::table('classroom_members')->join('users', 'users.id', '=', 'classroom_members.user_id')
+                ->whereIn('classroom_id', $classrooms->pluck('id'))->where('users.role', 'student')->where('users.tenant_id', $tenant)
+                ->orderBy('users.name')->get(['classroom_id', 'user_id', 'name', 'email', 'username', 'locked'])->groupBy('classroom_id'),
         ]);
     }
 
@@ -37,26 +43,74 @@ class LearningManagementController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('classrooms')->where('tenant_id', $tenant)->ignore($classroom)],
             'description' => 'nullable|string|max:3000',
+            'teacher_id' => 'sometimes|nullable|integer',
         ]);
-        if ($classroom === null) {
-            DB::table('classrooms')->insert($data + ['tenant_id' => $tenant, 'created_at' => now(), 'updated_at' => now()]);
-        } else {
-            DB::table('classrooms')->where('id', $classroom)->update($data + ['updated_at' => now()]);
-        }
+        DB::transaction(function () use ($classroom, $tenant, $data) {
+            if (isset($data['teacher_id'])) {
+                $teacher = DB::table('users')->where('tenant_id', $tenant)->where('role', 'teacher')->where('locked', false)
+                    ->where('id', $data['teacher_id'])->lockForUpdate()->first();
+                if (! $teacher) {
+                    throw ValidationException::withMessages(['teacher_id' => 'Chọn giáo viên đang hoạt động trong tổ chức.']);
+                }
+            }
+            if ($classroom === null) {
+                DB::table('classrooms')->insert($data + ['tenant_id' => $tenant, 'created_at' => now(), 'updated_at' => now()]);
+            } else {
+                DB::table('classrooms')->where('tenant_id', $tenant)->where('id', $classroom)->update($data + ['updated_at' => now()]);
+            }
+        });
 
         return back()->with('status', 'Đã lưu lớp học.');
+    }
+
+    public function addClassroomStudent(Request $request, int $classroom)
+    {
+        $query = LearningAccess::classrooms()->where('id', $classroom);
+        $query->firstOrFail();
+        $request->merge(['email' => is_string($request->input('email')) ? strtolower(trim($request->input('email'))) : $request->input('email')]);
+        $create = $request->boolean('create_account');
+        $data = $request->validate([
+            'create_account' => 'sometimes|boolean',
+            'email' => ['required', 'email', 'max:255', ...($create ? ['unique:users'] : [])],
+            'name' => $create ? 'required|string|max:255' : 'prohibited',
+            'password' => $create ? 'required|string|min:12|max:1024' : 'prohibited',
+        ]);
+        try {
+            DB::transaction(function () use ($query, $data, $create, $classroom) {
+                $group = $query->lockForUpdate()->firstOrFail();
+                abort_if($group->archived_at, 422, 'Khôi phục lớp trước khi thêm học viên.');
+                if ($create) {
+                    $id = DB::table('users')->insertGetId([
+                        'tenant_id' => $group->tenant_id, 'role' => 'student', 'name' => $data['name'], 'email' => $data['email'],
+                        'password' => Hash::make($data['password']), 'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                } else {
+                    $student = DB::table('users')->where('tenant_id', $group->tenant_id)->where('role', 'student')->where('locked', false)
+                        ->where('email', $data['email'])->lockForUpdate()->first();
+                    if (! $student) {
+                        throw ValidationException::withMessages(['email' => 'Không tìm thấy học viên đang hoạt động trong tổ chức.']);
+                    }
+                    $id = $student->id;
+                }
+                DB::table('classroom_members')->insertOrIgnore(['classroom_id' => $classroom, 'user_id' => $id]);
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages(['email' => 'Email đã có tài khoản. Dùng chức năng thêm học viên hiện có.']);
+        }
+
+        return back()->with('status', $create ? 'Đã tạo tài khoản và thêm học viên vào lớp.' : 'Học viên đã có trong lớp.');
     }
 
     public function members(Request $request, int $classroom)
     {
         $tenant = LearningAccess::tenantManager();
-        $group = DB::table('classrooms')->where('tenant_id', $tenant)->where('id', $classroom)->firstOrFail();
-        abort_if($group->archived_at, 422, 'Khôi phục lớp trước khi thay đổi thành viên.');
         $data = $request->validate(['user_ids' => 'sometimes|array|max:1000', 'user_ids.*' => 'required|integer|distinct']);
         $ids = $data['user_ids'] ?? [];
-        $valid = DB::table('users')->where('tenant_id', $tenant)->where('role', 'student')->whereIn('id', $ids)->count();
-        abort_unless($valid === count($ids), 422, 'Danh sách có học viên không thuộc tổ chức.');
-        DB::transaction(function () use ($classroom, $ids) {
+        DB::transaction(function () use ($classroom, $ids, $tenant) {
+            $group = DB::table('classrooms')->where('tenant_id', $tenant)->where('id', $classroom)->lockForUpdate()->firstOrFail();
+            abort_if($group->archived_at, 422, 'Khôi phục lớp trước khi thay đổi thành viên.');
+            $valid = DB::table('users')->where('tenant_id', $tenant)->where('role', 'student')->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->pluck('id');
+            abort_unless($valid->count() === count($ids), 422, 'Danh sách có học viên không thuộc tổ chức.');
             DB::table('classroom_members')->where('classroom_id', $classroom)->delete();
             foreach ($ids as $id) {
                 DB::table('classroom_members')->insert(['classroom_id' => $classroom, 'user_id' => $id]);
@@ -70,9 +124,9 @@ class LearningManagementController extends Controller
     {
         $context = LearningAccess::manageCourse($course);
         $data = $request->validate(['classroom_id' => 'required|integer']);
-        $classroom = DB::table('classrooms')->where('tenant_id', $context->tenant_id)->where('id', $data['classroom_id'])->firstOrFail();
-        abort_if($classroom->archived_at, 422, 'Lớp đã được lưu trữ.');
-        DB::transaction(function () use ($course, $classroom, $context) {
+        DB::transaction(function () use ($course, $data, $context) {
+            $classroom = LearningAccess::classrooms()->where('id', $data['classroom_id'])->lockForUpdate()->firstOrFail();
+            abort_if($classroom->archived_at, 422, 'Lớp đã được lưu trữ.');
             DB::table('course_classrooms')->insertOrIgnore(['course_id' => $course, 'classroom_id' => $classroom->id]);
             $ids = DB::table('classroom_members')->join('users', 'users.id', '=', 'classroom_members.user_id')
                 ->where('classroom_id', $classroom->id)->where('users.tenant_id', $context->tenant_id)
@@ -112,7 +166,7 @@ class LearningManagementController extends Controller
         ]);
         DB::table('activities')->where('course_id', $course)->where('id', $data['activity_id'])->firstOrFail();
         if ($data['audience'] === 'classroom') {
-            $group = DB::table('course_classrooms')->join('classrooms', 'classrooms.id', '=', 'course_classrooms.classroom_id')
+            $group = LearningAccess::classrooms()->join('course_classrooms', 'classrooms.id', '=', 'course_classrooms.classroom_id')
                 ->where('course_id', $course)->where('classroom_id', $data['classroom_id'])->where('tenant_id', $context->tenant_id)->firstOrFail();
             abort_if($request->boolean('granted') && $group->archived_at, 422, 'Khôi phục lớp trước khi giao bài mới.');
         }
@@ -278,8 +332,8 @@ class LearningManagementController extends Controller
 
     public function detachClassroom(int $course, int $classroom)
     {
-        $context = LearningAccess::manageCourse($course);
-        DB::table('classrooms')->where('tenant_id', $context->tenant_id)->where('id', $classroom)->firstOrFail();
+        LearningAccess::manageCourse($course);
+        LearningAccess::classrooms()->where('id', $classroom)->firstOrFail();
         DB::table('course_classrooms')->where('course_id', $course)->where('classroom_id', $classroom)->firstOrFail();
         DB::table('course_classrooms')->where('course_id', $course)->where('classroom_id', $classroom)->delete();
         $this->audit('course.classroom_detached', $course);

@@ -79,7 +79,7 @@ class LearningManagementTest extends TestCase
 
     public function test_manager_classroom_members_and_course_enrollment_are_tenant_scoped(): void
     {
-        $this->post('/classrooms', ['name' => 'Class A'])->assertRedirect();
+        $this->post('/classrooms', ['name' => 'Class A', 'teacher_id' => $this->teacher->id])->assertRedirect();
         $class = DB::table('classrooms')->value('id');
         $this->put('/classrooms/'.$class.'/members', ['user_ids' => [$this->student->id]])->assertRedirect();
         $this->putJson('/classrooms/'.$class.'/members', ['user_ids' => [$this->foreign->id]])->assertUnprocessable();
@@ -87,7 +87,49 @@ class LearningManagementTest extends TestCase
         $this->actingAs($this->teacher)->post('/courses/1/classrooms', ['classroom_id' => $class])->assertRedirect();
         $this->assertDatabaseHas('course_classrooms', ['course_id' => 1, 'classroom_id' => $class]);
         $this->post('/courses/1/classrooms', ['classroom_id' => $this->classroom(2)])->assertNotFound();
-        $this->get('/classrooms')->assertForbidden();
+        $this->get('/classrooms')->assertOk()->assertSee('Class A');
+        $this->actingAs($this->student)->get('/classrooms')->assertForbidden();
+    }
+
+    public function test_assigned_teacher_creates_students_in_class_and_can_enroll_them_into_course(): void
+    {
+        $otherTeacher = User::factory()->create(['role' => 'teacher', 'tenant_id' => 1]);
+        $foreignTeacher = User::factory()->create(['role' => 'teacher', 'tenant_id' => 2]);
+        $this->postJson('/classrooms', ['name' => 'Rejected', 'teacher_id' => $foreignTeacher->id])->assertUnprocessable();
+        $this->post('/classrooms', ['name' => 'Assigned classroom', 'teacher_id' => $this->teacher->id])->assertRedirect();
+        $this->post('/classrooms', ['name' => 'Other classroom', 'teacher_id' => $otherTeacher->id])->assertRedirect();
+        $class = DB::table('classrooms')->where('name', 'Assigned classroom')->value('id');
+        $other = DB::table('classrooms')->where('name', 'Other classroom')->value('id');
+        $this->assertDatabaseHas('classrooms', ['id' => $class, 'teacher_id' => $this->teacher->id]);
+        $this->postJson('/admin/users/'.$otherTeacher->id.'/role', ['role' => 'student'])->assertUnprocessable();
+
+        $this->actingAs($this->teacher)->get('/classrooms')->assertOk()
+            ->assertSee('Assigned classroom')->assertSee('Tạo học viên')->assertDontSee('Other classroom');
+        $data = ['create_account' => 1, 'name' => 'New Student', 'email' => 'NewStudent@example.com', 'password' => 'student-test-password'];
+        $this->postJson('/classrooms/'.$other.'/students', $data)->assertNotFound();
+        $this->postJson('/classrooms/'.$class.'/students', ['email' => $this->foreign->email])->assertUnprocessable();
+        $this->post('/classrooms/'.$class.'/students', $data)->assertRedirect()->assertSessionHasNoErrors();
+        $student = User::where('email', 'newstudent@example.com')->sole();
+        $this->assertSame('student', $student->role);
+        $this->assertSame(1, $student->tenant_id);
+        $this->assertDatabaseHas('classroom_members', ['classroom_id' => $class, 'user_id' => $student->id]);
+        $this->get('/courses/1/enrollment')->assertOk()->assertSee('Ghi danh và thêm vào lớp')->assertDontSee('Other classroom');
+
+        $this->post('/classrooms/'.$class.'/students', ['email' => $this->student->email])->assertRedirect();
+        $this->assertDatabaseHas('classroom_members', ['classroom_id' => $class, 'user_id' => $this->student->id]);
+        $this->postJson('/courses/1/enroll', ['email' => $student->email])->assertUnprocessable();
+        $this->postJson('/courses/1/enroll', ['email' => $student->email, 'classroom_id' => $other])->assertNotFound();
+        $extra = User::factory()->create(['role' => 'student', 'tenant_id' => 1]);
+        $this->post('/courses/1/enroll', ['email' => $extra->email, 'classroom_id' => $class])->assertRedirect();
+        $this->assertDatabaseHas('classroom_members', ['classroom_id' => $class, 'user_id' => $extra->id]);
+        $this->assertDatabaseHas('enrollments', ['course_id' => 1, 'user_id' => $extra->id]);
+        $this->assertDatabaseHas('course_classrooms', ['course_id' => 1, 'classroom_id' => $class]);
+        $this->assertDatabaseMissing('enrollments', ['course_id' => 1, 'user_id' => $student->id]);
+
+        $this->actingAs($this->manager)->post('/classrooms/'.$class.'/archive', ['archived' => 1])->assertRedirect();
+        $this->actingAs($this->teacher)->postJson('/classrooms/'.$class.'/students', ['email' => $extra->email])->assertUnprocessable();
+        $this->get('/courses/1/enrollment')->assertOk()->assertSee('Bạn cần được phân công lớp đang hoạt động');
+        $this->postJson('/courses/1/enroll', ['email' => $student->email])->assertUnprocessable();
     }
 
     public function test_bulk_grants_are_snapshot_based_and_individual_revocation_is_preserved_until_cleared(): void

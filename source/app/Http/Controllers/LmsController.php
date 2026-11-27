@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class LmsController extends Controller
@@ -85,7 +86,9 @@ class LmsController extends Controller
         DB::transaction(function () use ($id, $data) {
             $user = DB::table('users')->where('id', $id)->where('tenant_id', Auth::user()->tenant_id)->lockForUpdate()->firstOrFail();
             abort_unless(in_array($user->role, ['teacher', 'student'], true), 403);
-            abort_if($data['role'] === 'student' && (DB::table('courses')->where('teacher_id', $id)->exists() || DB::table('course_teachers')->where('user_id', $id)->exists()), 422, 'Tài khoản đang phụ trách hoặc đồng giảng khóa học.');
+            abort_if($data['role'] === 'student' && (DB::table('courses')->where('teacher_id', $id)->exists()
+                || DB::table('course_teachers')->where('user_id', $id)->exists()
+                || DB::table('classrooms')->where('teacher_id', $id)->exists()), 422, 'Hãy gỡ phân công lớp hoặc khóa học trước khi đổi giáo viên thành học viên.');
             abort_if($data['role'] === 'teacher' && (DB::table('enrollments')->where('user_id', $id)->exists() || DB::table('classroom_members')->where('user_id', $id)->exists()), 422, 'Hãy thu hồi ghi danh và thành viên lớp trước khi đổi học viên thành giáo viên.');
             DB::table('users')->where('id', $id)->update($data + ['updated_at' => now()]);
             DB::table('audit_logs')->insert(['event' => 'user.role_changed', 'user_id' => Auth::id(), 'resource_id' => $id]);
@@ -128,13 +131,15 @@ class LmsController extends Controller
             'learners' => $screen !== 'enrollment' ? collect() : DB::table('enrollments')->join('users', 'users.id', '=', 'enrollments.user_id')->where('course_id', $id)->where('users.role', 'student')->select('users.id', 'users.name', 'users.email')->get(),
             'availableLearners' => $screen === 'enrollment' && in_array(Auth::user()->role, ['teacher', 'tenant_admin'], true)
                 ? DB::table('users')->where('tenant_id', $course->tenant_id)->where('role', 'student')->where('locked', false)
+                    ->when(Auth::user()->role === 'teacher', fn ($query) => $query->whereIn('id', DB::table('classroom_members')
+                        ->whereIn('classroom_id', LearningAccess::classrooms()->whereNull('archived_at')->select('id'))->select('user_id')))
                     ->whereNotIn('id', DB::table('enrollments')->where('course_id', $id)->select('user_id'))
                     ->orderBy('name')->get(['name', 'email'])
                 : collect(),
             'assignments' => $screen !== 'enrollment' ? collect() : DB::table('activity_assignments')->join('activities', 'activities.id', '=', 'activity_assignments.activity_id')->join('users', 'users.id', '=', 'activity_assignments.user_id')->where('activities.course_id', $id)->select('activities.title', 'users.name')->get(),
             'tools' => $student || $screen !== 'activities' ? collect() : DB::table('lti_registrations')->where('tenant_id', $course->tenant_id)->select('id', 'name', 'deep_link_url')->get(),
             'grades' => Gradebook::filterStatus(request()->boolean('history') ? $history : ($screen === 'grades' ? Gradebook::overview($id, $filters['classroom_id'] ?? null, $filters['activity_id'] ?? null) : collect()), $filters['result_status'] ?? null),
-            'classrooms' => $student ? collect() : DB::table('classrooms')->where('tenant_id', $course->tenant_id)->orderBy('name')->get(),
+            'classrooms' => $student ? collect() : LearningAccess::classrooms()->orderBy('name')->get(),
             'attachedClassrooms' => $student ? collect() : DB::table('course_classrooms')->where('course_id', $id)->pluck('classroom_id'),
             'teachers' => $student ? collect() : DB::table('users')->where('tenant_id', $course->tenant_id)->where('role', 'teacher')->get(['id', 'name', 'locked']),
             'primaryTeacher' => $student ? null : DB::table('users')->where('id', $course->teacher_id)->where('tenant_id', $course->tenant_id)->first(['name']),
@@ -160,18 +165,39 @@ class LmsController extends Controller
 
     public function enroll(Request $request, int $id)
     {
-        $this->manage($id);
-        $data = $request->validate(['email' => 'required|email|max:255']);
-        $student = DB::table('users')->where('role', 'student')->where('tenant_id', Auth::user()->tenant_id)
-            ->where('locked', false)->where('email', strtolower($data['email']))->first();
-        if (! $student) {
-            throw ValidationException::withMessages(['email' => 'Không tìm thấy tài khoản học viên.']);
-        }
-        $added = DB::table('enrollments')->insertOrIgnore(['course_id' => $id, 'user_id' => $student->id]);
+        $course = LearningAccess::manageCourse($id);
+        $classes = LearningAccess::classrooms();
+        $data = $request->validate([
+            'email' => 'required|email|max:255',
+            'classroom_id' => ['nullable', 'integer', Rule::requiredIf(fn () => Auth::user()->role === 'teacher'
+                || (clone $classes)->whereNull('archived_at')->exists())],
+        ]);
+        $message = DB::transaction(function () use ($id, $course, $classes, $data) {
+            $classroom = null;
+            if (isset($data['classroom_id'])) {
+                $classroom = $classes->where('id', $data['classroom_id'])->lockForUpdate()->firstOrFail();
+                abort_if($classroom->archived_at, 422, 'Lớp đã được lưu trữ.');
+            }
+            $student = DB::table('users')->where('role', 'student')->where('tenant_id', $course->tenant_id)
+                ->where('locked', false)->where('email', strtolower($data['email']))->lockForUpdate()->first();
+            if (! $student) {
+                throw ValidationException::withMessages(['email' => 'Không tìm thấy tài khoản học viên.']);
+            }
 
-        return $this->respond(redirect('/courses/'.$id.'/enrollment'), $added
-            ? 'Đã ghi danh '.$student->name.'.'
-            : $student->name.' đã có trong khóa học.');
+            if ($classroom) {
+                DB::table('classroom_members')->insertOrIgnore(['classroom_id' => $classroom->id, 'user_id' => $student->id]);
+                DB::table('course_classrooms')->insertOrIgnore(['course_id' => $id, 'classroom_id' => $classroom->id]);
+            }
+            $added = DB::table('enrollments')->insertOrIgnore(['course_id' => $id, 'user_id' => $student->id]);
+
+            if ($classroom) {
+                return $student->name.' đã có trong khóa học và lớp '.$classroom->name.'.';
+            }
+
+            return $added ? 'Đã ghi danh '.$student->name.'.' : $student->name.' đã có trong khóa học.';
+        });
+
+        return $this->respond(redirect('/courses/'.$id.'/enrollment'), $message);
     }
 
     public function unenroll(int $id, int $user)

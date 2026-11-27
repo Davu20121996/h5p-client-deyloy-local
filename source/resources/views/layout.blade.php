@@ -15,6 +15,7 @@
         $links = ['/' => 'Khóa học'];
         if (in_array(auth()->user()->role, ['tenant_admin', 'teacher'], true)) {
             $links['/reports'] = 'Báo cáo';
+            $links['/classrooms'] = 'Lớp học';
         }
         if (!empty($course)) {
             $base = '/courses/'.$course->id;
@@ -24,7 +25,6 @@
             }
         }
         if (auth()->user()->role === 'tenant_admin') {
-            $links['/classrooms'] = 'Lớp học';
             $links['/admin/tenants'] = 'Tổ chức';
             $links += ['/admin/users' => 'Tài khoản', '/admin/tools' => 'Công cụ LTI', '/admin/logs' => 'Nhật ký LTI'];
         }

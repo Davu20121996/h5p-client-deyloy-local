@@ -6,7 +6,7 @@
 <form method="post" action="/courses/{{ $course->id }}/classrooms" class="fields">@csrf
 <label>Lớp<select name="classroom_id" required>@foreach($classrooms->whereNull('archived_at') as $classroom)<option value="{{ $classroom->id }}">{{ $classroom->name }}{{ $attachedClassrooms->contains($classroom->id) ? ' · Đã gắn' : '' }}</option>@endforeach</select></label>
 <button>Gắn lớp và ghi danh</button></form>
-@else<p>Quản trị tổ chức cần tạo lớp trước. Vẫn có thể ghi danh từng học viên.</p>@endif
+@else<p>Bạn chưa có lớp đang hoạt động để ghi danh theo lớp.</p>@endif
 </section>
 @foreach($classrooms->whereIn('id', $attachedClassrooms) as $classroom)
 <div class="card row section"><span class="grow">{{ $classroom->name }}{{ $classroom->archived_at ? ' · Đã lưu trữ' : '' }}</span>

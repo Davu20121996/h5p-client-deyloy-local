@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Http\Controllers\LmsController;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class LearningAccess
 {
@@ -22,6 +24,15 @@ class LearningAccess
         abort_unless($user && ! $user->locked && $user->role === 'tenant_admin' && $user->tenant_id, 403);
 
         return $user->tenant_id;
+    }
+
+    public static function classrooms(): Builder
+    {
+        $user = Auth::user();
+        abort_unless($user && ! $user->locked && $user->tenant_id && in_array($user->role, ['tenant_admin', 'teacher'], true), 403);
+
+        return DB::table('classrooms')->where('classrooms.tenant_id', $user->tenant_id)
+            ->when($user->role === 'teacher', fn (Builder $query) => $query->where('classrooms.teacher_id', $user->id));
     }
 
     public static function available(object $activity): bool
