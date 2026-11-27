@@ -37,15 +37,24 @@
 @elseif($screen === 'users')
 <h1>Tài khoản</h1>
 <div class="section actions">
-
-@if($hubAccountTool)
-<form method="post" action="/admin/users/hub" target="hub-picker" data-hub-picker-form>
-    @csrf
-    <button class="outline" type="submit">Tạo tài khoản</button>
-</form>
-@else
-<span class="muted">Tổ chức cần kết nối H5P Hub để tạo tài khoản.</span>
-@endif
+<x-modal id="user-create" title="Tạo tài khoản">
+    <form method="post" action="/admin/users" class="fields">
+        @csrf
+        <input type="hidden" name="_modal" value="user-create">
+        <label>Họ tên<input name="name" value="{{ old('name') }}" maxlength="255" required></label>
+        <label>Vai trò
+            <select name="role" required>
+                <option value="teacher" @selected(old('role', 'teacher') === 'teacher')>Giáo viên</option>
+                <option value="student" @selected(old('role') === 'student')>Học viên</option>
+            </select>
+        </label>
+        <p>Nhập ít nhất tên đăng nhập hoặc email.</p>
+        <label>Tên đăng nhập<input name="username" value="{{ old('username') }}" minlength="3" maxlength="64" autocomplete="off"></label>
+        <label>Email<input name="email" type="email" value="{{ old('email') }}" maxlength="255"></label>
+        <label>Mật khẩu ban đầu<input name="password" type="password" minlength="12" autocomplete="new-password" required></label>
+        <button type="submit">Tạo tài khoản</button>
+    </form>
+</x-modal>
 <x-modal id="users-import" title="Nhập học viên từ CSV">
 <form method="post" action="/admin/users/import" enctype="multipart/form-data" class="fields">@csrf
 <p>CSV UTF-8, tối đa 500 học viên. Dòng đầu: <code>name,email,password</code>. Mỗi học viên có mật khẩu ban đầu riêng từ 12 ký tự. Email trùng hoặc dòng sai sẽ hủy toàn bộ lượt nhập.</p>
@@ -53,24 +62,17 @@
 </x-modal>
 
 </div>
-@if($hubAccountTool)
-<section class="lesson-player hub-picker-panel" data-hub-picker-panel data-expandable-frame aria-label="Tạo tài khoản trên H5P Hub" hidden>
-    <div class="lesson-toolbar">
-        <div class="lesson-player-label">Tạo tài khoản trên H5P Hub</div>
-        <x-frame-expand />
-    </div>
-    <div class="lesson-stage">
-        <iframe name="hub-picker" class="hub-picker" title="Tạo tài khoản trên H5P Hub" data-hub-picker-frame></iframe>
-    </div>
-</section>
-<script defer src="/frame-expand.js?v={{ filemtime(public_path('frame-expand.js')) }}"></script>
-<script defer src="/hub-picker.js?v={{ filemtime(public_path('hub-picker.js')) }}"></script>
-@endif
+
 <h2 class="section-title">Danh sách tài khoản</h2>
 @forelse($userGroups as $members)
 <h3 class="section-title">{{ $members->first()->tenant_name ?? 'Tài khoản không thuộc tổ chức' }}</h3>
-<section class="card table-wrap"><table><thead><tr><th>Tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>
-@foreach($members as $user)<tr><td>{{ $user->name }}</td><td>{{ $user->email }}</td><td>
+<section class="card table-wrap"><table><thead><tr><th>Tên</th><th>Tên đăng nhập / email</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>
+@foreach($members as $user)<tr><td>{{ $user->name }}</td><td>
+@if($user->username)
+    {{ $user->username }}@if($user->email)<br>@endif
+@endif
+{{ $user->email }}
+</td><td>
 @if(!in_array($user->role, ['teacher', 'student'], true))
 {{ $roles->get($user->role, $user->role) }}
 @else

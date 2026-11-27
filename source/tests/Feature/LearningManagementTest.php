@@ -286,13 +286,44 @@ class LearningManagementTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'first@example.com', 'tenant_id' => 1, 'role' => 'student']);
     }
 
+    public function test_tenant_admin_creates_and_teacher_signs_in_without_a_hub_connection(): void
+    {
+        DB::table('activities')->delete();
+        DB::table('lti_registrations')->delete();
+        config(['hub.base_url' => null, 'hub.initial_password' => null]);
+
+        $this->get('/admin/users')->assertOk()
+            ->assertSee('data-modal-open="user-create"', false)
+            ->assertSee('action="/admin/users"', false)
+            ->assertDontSee('action="/admin/users/hub"', false);
+
+        $form = [
+            'name' => 'Giáo viên mới', 'username' => 'GVSMB-MOI', 'role' => 'teacher',
+            'password' => 'first-teacher-password', 'tenant_id' => 2,
+        ];
+        $this->actingAs($this->teacher)->post('/admin/users', $form)->assertForbidden();
+        $this->actingAs($this->manager)->post('/admin/users', array_replace($form, ['role' => 'tenant_admin']))
+            ->assertSessionHasErrors('role');
+        $this->from('/admin/users')->post('/admin/users', $form)->assertRedirect('/admin/users')
+            ->assertSessionHasNoErrors();
+
+        $account = User::where('username', 'gvsmb-moi')->sole();
+        $this->assertSame(1, $account->tenant_id);
+        $this->assertSame('teacher', $account->role);
+        $this->assertNull($account->email);
+        $this->get('/admin/users')->assertOk()->assertSee('gvsmb-moi');
+        $this->post('/logout')->assertRedirect('/');
+        $this->post('/login', ['email' => 'gvsmb-moi', 'password' => $form['password']])
+            ->assertRedirect('/account/password');
+        $this->assertAuthenticatedAs($account);
+    }
+
     public function test_tenant_admin_creates_an_account_from_a_session_bound_hub_iframe(): void
     {
         config(['hub.base_url' => 'https://hub.example', 'hub.initial_password' => 'client-initial-password']);
         DB::table('lti_keys')->insert(['kid' => 'test', 'encrypted_key' => Crypt::encryptString(self::$privateKey), 'modulus' => '', 'exponent' => '']);
         $this->actingAs($this->teacher)->post('/admin/users/hub')->assertForbidden();
-        $this->actingAs($this->manager)->get('/admin/users')->assertOk()
-            ->assertSee('action="/admin/users/hub" target="hub-picker"', false)->assertSee('data-hub-picker-panel', false);
+        $this->actingAs($this->manager);
         $fields = $this->post('/admin/users/hub')->assertOk()->viewData('fields');
         $this->assertSame('deployment-a', $fields['lti_deployment_id']);
         $this->withCookie(config('session.cookie'), session()->getId());

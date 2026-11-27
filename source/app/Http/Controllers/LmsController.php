@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Services\ActivityAssignments;
 use App\Services\Gradebook;
-use App\Services\HubProvisioningConfig;
 use App\Services\LearningAccess;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -316,14 +316,13 @@ class LmsController extends Controller
         $tenant = Auth::user()->tenant_id;
 
         return $this->screen('admin', [
-            'hubAccountTool' => $screen === 'users' ? HubProvisioningConfig::accountTool($tenant) : null,
             'roles' => $screen === 'users' ? DB::table('roles')->pluck('name', 'code') : collect(),
             'organization' => $screen === 'tenants' ? DB::table('tenants')->where('id', $tenant)->firstOrFail() : null,
             'screen' => $screen,
             'userGroups' => $screen !== 'users' ? collect() : DB::table('users')
                 ->join('tenants', 'tenants.id', '=', 'users.tenant_id')
                 ->where('users.tenant_id', $tenant)
-                ->select('users.id', 'users.name', 'users.email', 'users.role', 'users.locked', 'tenants.name as tenant_name')
+                ->select('users.id', 'users.name', 'users.email', 'users.username', 'users.role', 'users.locked', 'tenants.name as tenant_name')
                 ->orderBy('users.name')->get()->groupBy('tenant_name'),
             'toolGroups' => $screen !== 'tools' ? collect() : DB::table('lti_registrations as tools')
                 ->join('tenants', 'tenants.id', '=', 'tools.tenant_id')
@@ -353,18 +352,27 @@ class LmsController extends Controller
         return $this->respond(redirect('/admin/tenants'), 'Đã lưu câu chào.');
     }
 
-    public function createUser(Request $request)
+    public function createUser(Request $request): JsonResponse|RedirectResponse
     {
-        $this->requireTenantAdmin();
-        if (is_string($request->input('email'))) {
-            $request->merge(['email' => strtolower($request->input('email'))]);
+        $tenant = LearningAccess::tenantManager();
+        foreach (['username', 'email'] as $field) {
+            if (is_string($request->input($field))) {
+                $request->merge([$field => strtolower($request->input($field))]);
+            }
         }
+
         $data = $request->validate([
-            'name' => 'required|string|max:255', 'email' => 'required|email|max:255|unique:users',
-            'role' => 'required|in:teacher,student', 'password' => 'required|string|min:12|max:1024',
+            'name' => 'required|string|max:255',
+            'username' => ['nullable', 'required_without:email', 'string', 'min:3', 'max:64', 'regex:/\A(?![0-9]+\z)[a-z0-9][a-z0-9._-]*\z/', 'unique:users'],
+            'email' => 'nullable|required_without:username|email|max:255|unique:users',
+            'role' => 'required|in:teacher,student',
+            'password' => 'required|string|min:12|max:1024',
         ]);
         $data['password'] = Hash::make($data['password']);
-        DB::table('users')->insert($data + ['tenant_id' => Auth::user()->tenant_id, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('users')->insert($data + [
+            'tenant_id' => $tenant, 'must_change_password' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
 
         return $this->respond(back(), 'Đã tạo tài khoản.');
     }
