@@ -9,7 +9,10 @@ class AdminSeeder extends Seeder
 {
     public function run(): void
     {
-        if (DB::table('users')->where('role', 'admin')->exists()) {
+        $email = DB::table('users')->where('role', 'admin')->orderBy('id')->value('email');
+        if ($email !== null) {
+            $this->command->info('Tài khoản Admin hệ thống đã tồn tại: '.$email);
+
             return;
         }
 
