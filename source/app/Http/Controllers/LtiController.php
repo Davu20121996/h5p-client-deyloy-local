@@ -3,15 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Services\Gradebook;
+use App\Services\HubProvisioningConfig;
 use App\Services\LearningAccess;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class LtiController extends Controller
@@ -84,6 +87,74 @@ class LtiController extends Controller
             'iss' => config('app.url'), 'client_id' => $tool->client_id, 'login_hint' => $hint,
             'lti_message_hint' => $hint, 'lti_deployment_id' => $tool->deployment_id, 'target_link_uri' => $tool->deep_link_url,
         ]);
+    }
+
+    public function openAccountForm(Request $request)
+    {
+        $tenant = LearningAccess::tenantManager();
+        $tool = HubProvisioningConfig::accountTool($tenant);
+        abort_unless($tool, 422, 'Tổ chức chưa có kết nối H5P Hub để tạo tài khoản.');
+        $hint = Str::random(64);
+        Cache::put('lti:hint:'.hash('sha256', $hint), [
+            'user' => Auth::id(), 'session' => $request->session()->getId(),
+            'account_form' => true, 'tenant' => $tenant, 'tool' => $tool->id,
+        ], 300);
+
+        return $this->form($tool->login_url, [
+            'iss' => config('app.url'), 'client_id' => $tool->client_id, 'login_hint' => $hint,
+            'lti_message_hint' => $hint, 'lti_deployment_id' => $tool->deployment_id, 'target_link_uri' => $tool->redirect_uri,
+        ]);
+    }
+
+    public function receiveAccountForm(Request $request)
+    {
+        $tenant = LearningAccess::tenantManager();
+        $data = $request->input('data');
+        abort_unless(is_string($data) && strlen($data) === 64, 403);
+        $key = 'lti:account-form:'.hash('sha256', $data);
+
+        return Cache::lock($key.':lock', 10)->get(function () use ($request, $tenant, $key) {
+            $pending = Cache::get($key);
+            abort_unless($pending && $pending['user'] === Auth::id()
+                && $pending['session'] === $request->session()->getId() && $pending['tenant'] === $tenant, 403);
+
+            $input = $request->only(['name', 'email', 'username', 'role']);
+            foreach (['email', 'username'] as $field) {
+                if (is_string($input[$field] ?? null)) {
+                    $input[$field] = strtolower(trim($input[$field]));
+                }
+            }
+            $validator = validator($input, [
+                'name' => 'required|string|max:255', 'role' => 'required|in:teacher,student',
+                'email' => 'nullable|required_without:username|email|max:255|unique:users',
+                'username' => ['nullable', 'required_without:email', 'min:3', 'max:64', 'regex:/\A(?![0-9]+\z)[a-z0-9][a-z0-9._-]*\z/', 'unique:users'],
+            ]);
+            if ($validator->fails()) {
+                return $this->accountFormResult($validator->errors()->all(), 422);
+            }
+            $password = (string) config('hub.initial_password');
+            if (strlen($password) < 12 || strlen($password) > 72) {
+                return $this->accountFormResult(['Client chưa cấu hình mật khẩu ban đầu.'], 503);
+            }
+            try {
+                DB::table('users')->insert($validator->validated() + [
+                    'tenant_id' => $tenant, 'password' => Hash::make($password), 'must_change_password' => true,
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                return $this->accountFormResult(['Tên đăng nhập hoặc email đã có tài khoản.'], 409);
+            }
+            Cache::forget($key);
+            session()->flash('status', 'Đã tạo tài khoản. Người dùng cần đổi mật khẩu khi đăng nhập lần đầu.');
+
+            return $this->accountFormResult();
+        }) ?: abort(409);
+    }
+
+    private function accountFormResult(array $messages = [], int $status = 200)
+    {
+        return response()->view('hub-account-result', compact('messages'), $status)->header('Cache-Control', 'no-store')
+            ->header('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; frame-ancestors 'self'; base-uri 'none'");
     }
 
     public function selectedContent(Request $request)
@@ -167,6 +238,9 @@ class LtiController extends Controller
             if (isset($pending['selection'])) {
                 return $this->authorizeSelection($pending, $data, $cacheKey);
             }
+            if (isset($pending['account_form'])) {
+                return $this->authorizeAccountForm($pending, $data, $cacheKey);
+            }
             $item = $this->launchable($pending['course'], $pending['activity']);
             abort_unless($item->client_id === $data['client_id'] && $item->redirect_uri === $data['redirect_uri'], 403);
             $key = DB::table('lti_keys')->whereNull('retired_at')->latest('created_at')->first();
@@ -196,6 +270,39 @@ class LtiController extends Controller
 
             return $this->form($item->redirect_uri, ['id_token' => $token, 'state' => $data['state']]);
         }) ?: abort(409);
+    }
+
+    private function authorizeAccountForm(array $pending, array $data, string $cacheKey)
+    {
+        $tenant = LearningAccess::tenantManager();
+        $tool = HubProvisioningConfig::accountTool($tenant);
+        abort_unless($tool && $tenant === $pending['tenant'] && $tool->id === $pending['tool']
+            && $tool->client_id === $data['client_id'] && $tool->redirect_uri === $data['redirect_uri'], 403);
+        $key = DB::table('lti_keys')->whereNull('retired_at')->latest('created_at')->first();
+        abort_unless($key, 503, 'Chưa có khóa ký LTI.');
+        abort_unless(Cache::add('lti:nonce:'.hash('sha256', $tool->client_id.'|'.$data['nonce']), true, 300), 409);
+        $formToken = Str::random(64);
+        Cache::put('lti:account-form:'.hash('sha256', $formToken), [
+            'user' => $pending['user'], 'tenant' => $tenant, 'session' => $pending['session'],
+        ], 1800);
+        $claims = [
+            'iss' => config('app.url'), 'sub' => (string) Auth::id(), 'aud' => $tool->client_id, 'name' => Auth::user()->name,
+            'iat' => time(), 'exp' => time() + 300, 'nonce' => $data['nonce'],
+            self::LTI.'version' => '1.3.0', self::LTI.'message_type' => 'LtiDeepLinkingRequest',
+            self::LTI.'deployment_id' => $tool->deployment_id, self::LTI.'target_link_uri' => $tool->redirect_uri,
+            self::LTI.'roles' => $this->launchRoles(),
+            self::DEEP.'deep_linking_settings' => [
+                'deep_link_return_url' => $this->endpoint('lti.account.return'), 'accept_types' => ['ltiResourceLink'],
+                'accept_presentation_document_targets' => ['iframe'], 'accept_multiple' => false,
+                'client_account_form' => true, 'data' => $formToken,
+            ],
+        ];
+        Cache::forget($cacheKey);
+
+        return $this->form($tool->redirect_uri, [
+            'id_token' => JWT::encode($claims, Crypt::decryptString($key->encrypted_key), 'RS256', $key->kid),
+            'state' => $data['state'],
+        ]);
     }
 
     private function recordSelection(string $selection, int $course): void

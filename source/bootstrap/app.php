@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
-        $middleware->validateCsrfTokens(except: ['hub/provision', 'hub/provision/accounts', 'lti/authorize', 'lti/token', 'lti/courses/*/scores', 'lti/deep-link/return']);
+        $middleware->validateCsrfTokens(except: ['hub/provision', 'hub/provision/accounts', 'lti/authorize', 'lti/token', 'lti/courses/*/scores', 'lti/deep-link/return', 'lti/tenant-account/return']);
         $middleware->redirectUsersTo('/');
     })
     ->withExceptions(function (Exceptions $exceptions) {

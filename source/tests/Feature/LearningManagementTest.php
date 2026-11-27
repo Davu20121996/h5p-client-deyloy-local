@@ -156,7 +156,7 @@ class LearningManagementTest extends TestCase
         $this->assertDatabaseCount('activity_assignments', 0);
     }
 
-    public function test_bulk_selector_can_target_an_assigned_classroom_before_it_is_linked(): void
+    public function test_granting_a_draft_to_a_classroom_enrolls_its_students_and_makes_the_lesson_visible(): void
     {
         $class = $this->classroom();
         DB::table('classrooms')->where('id', $class)->update(['teacher_id' => $this->teacher->id]);
@@ -164,10 +164,14 @@ class LearningManagementTest extends TestCase
         $target = User::factory()->create(['tenant_id' => 1, 'role' => 'student']);
         $notEnrolled = User::factory()->create(['tenant_id' => 1, 'role' => 'student']);
         $otherLearner = User::factory()->create(['tenant_id' => 1, 'role' => 'student']);
+        $locked = User::factory()->create(['tenant_id' => 1, 'role' => 'student', 'locked' => true]);
         DB::table('classroom_members')->insert([
             ['classroom_id' => $class, 'user_id' => $target->id],
             ['classroom_id' => $class, 'user_id' => $notEnrolled->id],
+            ['classroom_id' => $class, 'user_id' => $locked->id],
         ]);
+        DB::table('activities')->where('id', 1)->update(['published' => false]);
+        $this->actingAs($notEnrolled)->get('/')->assertOk()->assertDontSee('Course A');
         DB::table('enrollments')->insert([
             ['course_id' => 1, 'user_id' => $target->id],
             ['course_id' => 1, 'user_id' => $otherLearner->id],
@@ -178,11 +182,18 @@ class LearningManagementTest extends TestCase
         $this->postJson('/courses/1/assign-bulk', ['activity_id' => 1, 'classroom_id' => $otherClass, 'granted' => 1])->assertNotFound();
         $this->postJson('/courses/1/assign-bulk', ['activity_id' => 1, 'granted' => 1])->assertUnprocessable();
         $this->post('/courses/1/assign-bulk', ['activity_id' => 1, 'classroom_id' => $class, 'granted' => 1])->assertRedirect();
-        $this->assertDatabaseCount('course_classrooms', 0);
+        $this->assertDatabaseHas('course_classrooms', ['course_id' => 1, 'classroom_id' => $class]);
         $this->assertDatabaseHas('activity_assignments', ['activity_id' => 1, 'user_id' => $target->id]);
-        $this->assertDatabaseMissing('activity_assignments', ['activity_id' => 1, 'user_id' => $notEnrolled->id]);
+        $this->assertDatabaseHas('activity_assignments', ['activity_id' => 1, 'user_id' => $notEnrolled->id]);
         $this->assertDatabaseMissing('activity_assignments', ['activity_id' => 1, 'user_id' => $otherLearner->id]);
-        $this->assertDatabaseMissing('enrollments', ['course_id' => 1, 'user_id' => $notEnrolled->id]);
+        $this->assertDatabaseHas('enrollments', ['course_id' => 1, 'user_id' => $notEnrolled->id]);
+        $this->assertDatabaseMissing('enrollments', ['course_id' => 1, 'user_id' => $locked->id]);
+        $this->assertDatabaseHas('activities', ['id' => 1, 'published' => true]);
+        $this->actingAs($notEnrolled)->get('/')->assertOk()->assertSee('Course A');
+        $this->get('/courses/1/activities')->assertOk()->assertSee('Lesson A')->assertSee('Mở bài học');
+        $this->get('/courses/1/activities/1/learn')->assertOk();
+        $this->actingAs($otherLearner)->get('/courses/1/activities')->assertOk()->assertDontSee('Lesson A');
+        $this->actingAs($this->teacher);
         $this->post('/courses/1/assign-bulk', ['activity_id' => 1, 'classroom_id' => 'course', 'granted' => 1])->assertRedirect();
         $this->assertDatabaseHas('activity_assignments', ['activity_id' => 1, 'user_id' => $otherLearner->id]);
     }
@@ -205,7 +216,8 @@ class LearningManagementTest extends TestCase
         $this->assertSame('2026-11-25 03:00:00', DB::table('activities')->value('opens_at'));
         $this->actingAs($this->student)->get('/courses/1/activities/1/learn')->assertForbidden();
         $this->travel(2)->hours();
-        $this->get('/courses/1/activities/1/learn')->assertOk()->assertSee('Mở bài ở tab mới');
+        $this->get('/courses/1/activities/1/learn')->assertOk()
+            ->assertSee('data-expandable-frame', false)->assertSee('Phóng to')->assertDontSee('Mở bài ở tab mới');
         $this->travel(2)->hours();
         $this->post('/courses/1/activities/1/launch')->assertForbidden();
         $this->get('/courses/1/activities/1/status')->assertOk();
@@ -274,6 +286,41 @@ class LearningManagementTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'first@example.com', 'tenant_id' => 1, 'role' => 'student']);
     }
 
+    public function test_tenant_admin_creates_an_account_from_a_session_bound_hub_iframe(): void
+    {
+        config(['hub.base_url' => 'https://hub.example', 'hub.initial_password' => 'client-initial-password']);
+        DB::table('lti_keys')->insert(['kid' => 'test', 'encrypted_key' => Crypt::encryptString(self::$privateKey), 'modulus' => '', 'exponent' => '']);
+        $this->actingAs($this->teacher)->post('/admin/users/hub')->assertForbidden();
+        $this->actingAs($this->manager)->get('/admin/users')->assertOk()
+            ->assertSee('action="/admin/users/hub" target="hub-picker"', false)->assertSee('data-hub-picker-panel', false);
+        $fields = $this->post('/admin/users/hub')->assertOk()->viewData('fields');
+        $this->assertSame('deployment-a', $fields['lti_deployment_id']);
+        $this->withCookie(config('session.cookie'), session()->getId());
+        $authorization = $this->post('/lti/authorize', [
+            'login_hint' => $fields['login_hint'], 'lti_message_hint' => $fields['lti_message_hint'],
+            'client_id' => 'hub-a', 'redirect_uri' => 'https://hub.example/lti/launch',
+            'state' => 'hub-state', 'nonce' => 'hub-account-form-nonce',
+            'scope' => 'openid', 'response_type' => 'id_token', 'response_mode' => 'form_post', 'prompt' => 'none',
+        ])->assertOk();
+        $claims = (array) JWT::decode($authorization->viewData('fields')['id_token'], new Key(self::$publicKey, 'RS256'));
+        $settings = (array) $claims[self::DEEP.'deep_linking_settings'];
+        $this->assertSame((string) $this->manager->id, $claims['sub']);
+        $this->assertTrue($settings['client_account_form']);
+        $this->assertSame('https://client.example/lti/tenant-account/return', $settings['deep_link_return_url']);
+        $this->assertArrayNotHasKey('password', $settings);
+
+        $account = ['data' => $settings['data'], 'name' => 'New teacher', 'username' => 'Teacher-Hub', 'role' => 'teacher'];
+        $this->post('/lti/tenant-account/return', array_replace($account, ['role' => 'tenant_admin']))->assertUnprocessable();
+        $otherManager = User::factory()->create(['role' => 'tenant_admin', 'tenant_id' => 2]);
+        $this->actingAs($otherManager)->post('/lti/tenant-account/return', $account)->assertForbidden();
+        $this->actingAs($this->manager)->post('/lti/tenant-account/return', $account)->assertOk()->assertSee('data-hub-picker-result', false);
+        $user = User::where('username', 'teacher-hub')->sole();
+        $this->assertSame(1, $user->tenant_id);
+        $this->assertTrue($user->must_change_password);
+        $this->assertTrue(Hash::check('client-initial-password', $user->password));
+        $this->post('/lti/tenant-account/return', $account)->assertForbidden();
+    }
+
     private function selection(bool $embedded = false): array
     {
         DB::table('lti_keys')->insertOrIgnore(['kid' => 'test', 'encrypted_key' => Crypt::encryptString(self::$privateKey), 'modulus' => '', 'exponent' => '']);
@@ -322,7 +369,8 @@ class LearningManagementTest extends TestCase
     {
         $this->actingAs($this->student)->post('/courses/1/hub/select', ['lti_registration_id' => 1])->assertForbidden();
         $this->actingAs($this->teacher)->get('/courses/1/activities')->assertOk()
-            ->assertSee('target="hub-picker"', false)->assertSee('<iframe name="hub-picker"', false);
+            ->assertSee('target="hub-picker"', false)->assertSee('<iframe name="hub-picker"', false)
+            ->assertSee('data-hub-picker-panel data-expandable-frame', false)->assertSee('Phóng to')->assertDontSee('Mở ở tab mới');
         $this->returnSelection($this->selection(true))->assertOk()
             ->assertViewIs('hub-selection-result')->assertSessionHas('status');
         $this->assertDatabaseHas('activities', ['title' => 'Selected from Hub', 'published' => false]);

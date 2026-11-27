@@ -1,24 +1,9 @@
 @if($screen === 'enrollment')
 <section class="card settings-card section">
-<h2>Ghi danh theo lớp</h2>
-<p>Thêm các học viên hiện có trong lớp vào khóa học. Ghi danh lại để bổ sung thành viên mới; danh sách cũ không tự bị thu hồi.</p>
-@if($classrooms->whereNull('archived_at')->isNotEmpty())
-<form method="post" action="/courses/{{ $course->id }}/classrooms" class="fields">@csrf
-<label>Lớp<select name="classroom_id" required>@foreach($classrooms->whereNull('archived_at') as $classroom)<option value="{{ $classroom->id }}">{{ $classroom->name }}{{ $attachedClassrooms->contains($classroom->id) ? ' · Đã gắn' : '' }}</option>@endforeach</select></label>
-<button>Gắn lớp và ghi danh</button></form>
-@else<p>Bạn chưa có lớp đang hoạt động để ghi danh theo lớp.</p>@endif
-</section>
-@foreach($classrooms->whereIn('id', $attachedClassrooms) as $classroom)
-<div class="card row section"><span class="grow">{{ $classroom->name }}{{ $classroom->archived_at ? ' · Đã lưu trữ' : '' }}</span>
-<x-modal :id="'classroom-detach-'.$classroom->id" title="Gỡ liên kết lớp">
-<p>Gỡ {{ $classroom->name }} khỏi khóa học. Học viên vẫn giữ ghi danh và quyền bài đã cấp. Thu hồi riêng trong danh sách học viên nếu cần ngừng quyền học.</p>
-<form method="post" action="/courses/{{ $course->id }}/classrooms/{{ $classroom->id }}">@csrf @method('DELETE')<button>Gỡ liên kết lớp</button></form></x-modal></div>
-@endforeach
-<section class="card settings-card section">
-<h2>Giao bài hàng loạt</h2><p>Áp dụng cho học viên đã ghi danh tại thời điểm bấm. Giữ các ngoại lệ cấp/thu hồi riêng; chọn “Theo đợt giao” ở phần quyền cá nhân để bỏ ngoại lệ.</p>
+<h2>Giao bài cho lớp</h2><p>Chọn bài và lớp rồi bấm Giao bài. Học viên đang hoạt động trong lớp được thêm vào khóa học và có thể mở bài theo lịch đã đặt. Bài nháp được xuất bản khi giao cho lớp.</p>
 @if($activities->isNotEmpty())
 <form method="post" action="/courses/{{ $course->id }}/assign-bulk" class="fields">@csrf
-<label>Bài học<select name="activity_id">@foreach($activities as $activity)<option value="{{ $activity->id }}">{{ $activity->title }}</option>@endforeach</select></label>
+<label>Bài học<select name="activity_id">@foreach($activities as $activity)<option value="{{ $activity->id }}">{{ $activity->title }}{{ $activity->archived_at ? ' · Đã lưu trữ' : ($activity->published ? '' : ' · Bản nháp') }}</option>@endforeach</select></label>
 <label>Đối tượng giao bài<select name="classroom_id" required>
     <option value="">Chọn toàn khóa học hoặc một lớp</option>
     <option value="course" @selected(old('classroom_id') === 'course')>Tất cả học viên đã ghi danh</option>
@@ -31,6 +16,21 @@
 <div class="actions"><button name="granted" value="1">Giao bài</button><button name="granted" value="0" class="outline">Thu hồi bài</button></div>
 </form>@else<p>Tạo hoạt động trước khi giao bài.</p>@endif
 </section>
+<details class="card settings-card section">
+<summary>Thêm cả lớp vào khóa học mà chưa giao bài</summary>
+<p>Ghi danh cho học viên vào khóa học. Khi đã sẵn sàng, dùng mục Giao bài cho lớp để giao bài.</p>
+@if($classrooms->whereNull('archived_at')->isNotEmpty())
+<form method="post" action="/courses/{{ $course->id }}/classrooms" class="fields">@csrf
+<label>Lớp<select name="classroom_id" required>@foreach($classrooms->whereNull('archived_at') as $classroom)<option value="{{ $classroom->id }}">{{ $classroom->name }}{{ $attachedClassrooms->contains($classroom->id) ? ' · Đã gắn' : '' }}</option>@endforeach</select></label>
+<button>Thêm lớp vào khóa học</button></form>
+@else<p>Bạn chưa có lớp đang hoạt động để ghi danh theo lớp.</p>@endif
+</details>
+@foreach($classrooms->whereIn('id', $attachedClassrooms) as $classroom)
+<div class="card row section"><span class="grow">{{ $classroom->name }}{{ $classroom->archived_at ? ' · Đã lưu trữ' : '' }}</span>
+<x-modal :id="'classroom-detach-'.$classroom->id" title="Gỡ liên kết lớp">
+<p>Gỡ {{ $classroom->name }} khỏi khóa học. Học viên vẫn giữ ghi danh và quyền bài đã cấp. Thu hồi riêng trong danh sách học viên nếu cần ngừng quyền học.</p>
+<form method="post" action="/courses/{{ $course->id }}/classrooms/{{ $classroom->id }}">@csrf @method('DELETE')<button>Gỡ liên kết lớp</button></form></x-modal></div>
+@endforeach
 @elseif($screen === 'settings')
 <section class="card settings-card section"><h2>Giáo viên đồng giảng</h2>
 <p>Giáo viên phụ trách: {{ $primaryTeacher->name ?? 'Chưa xác định' }}</p>

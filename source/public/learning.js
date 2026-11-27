@@ -3,21 +3,7 @@ if (learningPanel) {
     const message = learningPanel.querySelector('[data-learning-message]');
     const score = learningPanel.querySelector('[data-learning-score]');
     const player = learningPanel.querySelector('[data-learning-player]');
-    const expand = learningPanel.querySelector('[data-learning-expand]');
     const label = learningPanel.querySelector('[data-learning-label]');
-    function setExpanded(expanded) {
-        player.classList.toggle('is-expanded', expanded);
-        document.body.classList.toggle('lesson-expanded', expanded);
-        expand.setAttribute('aria-pressed', String(expanded));
-        expand.querySelector('[data-expand-label]').textContent = expanded ? 'Thu gọn' : 'Phóng to';
-    }
-    expand.addEventListener('click', () => setExpanded(!player.classList.contains('is-expanded')));
-    document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && player.classList.contains('is-expanded')) {
-            setExpanded(false);
-            expand.focus();
-        }
-    });
     let timer;
     let active = true;
     let launched = false;
@@ -49,21 +35,17 @@ if (learningPanel) {
             if (active) timer = setTimeout(refresh, 5000);
         }
     }
-    function startTracking(embedded) {
+    learningPanel.querySelector('[data-learning-launch]').addEventListener('submit', () => {
         clearTimeout(timer);
         active = true;
         launched = true;
-        if (embedded) {
-            learningPanel.querySelector('[data-learning-placeholder]').hidden = true;
-            player.querySelector('iframe').hidden = false;
-        }
+        learningPanel.querySelector('[data-learning-placeholder]').hidden = true;
+        player.querySelector('iframe').hidden = false;
         learningPanel.dataset.state = 'learning';
         label.textContent = 'Đang học';
         message.textContent = 'Đang mở bài học. Điểm sẽ tự cập nhật khi có kết quả.';
         timer = setTimeout(refresh, 5000);
-    }
-    learningPanel.querySelector('[data-learning-launch]').addEventListener('submit', () => startTracking(true));
-    learningPanel.querySelector('[data-learning-external]')?.addEventListener('submit', () => startTracking(false));
+    });
     timer = setTimeout(refresh, 0);
     window.addEventListener('pageshow', () => {
         if (!active) {

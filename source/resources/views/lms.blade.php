@@ -92,15 +92,22 @@
 <form method="post" action="/courses/{{ $course->id }}/hub/select" class="fields" target="hub-picker" data-hub-picker-form>@csrf
 <label>Kho nội dung<select name="lti_registration_id" required>@foreach($tools->whereNotNull('deep_link_url') as $tool)<option value="{{ $tool->id }}">{{ $tool->name }}</option>@endforeach</select></label>
 <p>Bài được thêm vào khóa học dưới dạng nháp.</p>
-<div class="actions">
-    <button type="submit" name="embedded" value="1">Mở thư viện H5P</button>
-    <button class="outline" type="submit" name="embedded" value="0" formtarget="_blank">Mở ở tab mới</button>
-</div>
+<input type="hidden" name="embedded" value="1">
+<div class="actions"><button type="submit">Mở thư viện H5P</button></div>
 </form>
 @else<p>Liên hệ quản trị hệ thống để thiết lập kết nối của tổ chức trên H5P Hub.</p>@endif
 </section>
 @if($tools->whereNotNull('deep_link_url')->isNotEmpty())
-<iframe name="hub-picker" class="hub-picker" title="Thư viện H5P Hub" data-hub-picker-frame></iframe>
+<section class="lesson-player hub-picker-panel" data-hub-picker-panel data-expandable-frame aria-label="Thư viện H5P Hub" hidden>
+    <div class="lesson-toolbar">
+        <div class="lesson-player-label">Thư viện H5P Hub</div>
+        <x-frame-expand />
+    </div>
+    <div class="lesson-stage">
+        <iframe name="hub-picker" class="hub-picker" title="Thư viện H5P Hub" data-hub-picker-frame></iframe>
+    </div>
+</section>
+<script defer src="/frame-expand.js?v={{ filemtime(public_path('frame-expand.js')) }}"></script>
 <script defer src="/hub-picker.js?v={{ filemtime(public_path('hub-picker.js')) }}"></script>
 @endif
 <x-modal id="activity-create" title="Thêm hoạt động H5P">
@@ -111,12 +118,13 @@
 </div>
 @elseif($screen === 'enrollment')
 @if($manage)@include('course-management')@endif
-<h2 class="section-title">Ghi danh học viên</h2>
 @if($manage)
+<details class="card settings-card section">
+<summary>Thêm từng học viên vào khóa học</summary>
 @if(auth()->user()->role === 'teacher' && $classrooms->whereNull('archived_at')->isEmpty())
 <p>Bạn cần được phân công lớp đang hoạt động để ghi danh học viên.</p>
 @else
-<section class="card settings-card"><form method="post" action="/courses/{{ $course->id }}/enroll" class="fields">@csrf
+<form method="post" action="/courses/{{ $course->id }}/enroll" class="fields">@csrf
 <label>Email học viên<input name="email" type="email" list="available-learners" value="{{ old('email') }}" required></label>
 <datalist id="available-learners">
 @foreach($availableLearners as $learner)
@@ -134,8 +142,9 @@
 @else
 <button>Ghi danh vào khóa học</button>
 @endif
-</form></section>
+</form>
 @endif
+</details>
 @endif
 <h2 class="section-title">Học viên đã ghi danh <span class="pill">{{ $learners->count() }}</span></h2>
 @if($manage)<p><a class="link" href="/courses/{{ $course->id }}/roster.csv">Tải danh sách học viên CSV</a></p>@endif
@@ -159,8 +168,8 @@
 @endforelse
 </tbody></table>
 </section>
-<h2 class="section-title">Quyền làm bài</h2>
-<section class="card settings-card">
+<details class="card settings-card section">
+<summary>Ngoại lệ cho từng học viên</summary>
 @if(!$manage)
 @elseif($learners->isEmpty() || $activities->isEmpty())
 <p>Ghi danh học viên và tạo hoạt động để cấp quyền làm bài.</p>
@@ -168,7 +177,7 @@
 <form method="post" action="/courses/{{ $course->id }}/assign" class="fields">@csrf
 <label>Học viên<select name="user_id" required>@foreach($learners as $learner)<option value="{{ $learner->id }}">{{ $learner->name }} ({{ $learner->email }})</option>@endforeach</select></label>
 <label>Hoạt động<select name="activity_id" required>@foreach($activities as $activity)<option value="{{ $activity->id }}">{{ $activity->title }}{{ $activity->published ? '' : ' (bản nháp)' }}</option>@endforeach</select></label>
-<p>Cấp/thu hồi riêng được giữ qua các đợt giao hàng loạt. “Theo đợt giao” bỏ ngoại lệ và áp dụng lại trạng thái của đợt giao gần nhất cho người này.</p>
+<p>Dùng mục này khi cần cấp hoặc thu hồi riêng cho một học viên. Chọn Theo đợt giao để bỏ ngoại lệ và áp dụng lại trạng thái của đợt giao gần nhất.</p>
 <div class="actions"><button name="granted" value="1">Cấp quyền riêng</button><button class="outline" name="granted" value="0">Thu hồi riêng</button><button class="outline" name="mode" value="inherit">Theo đợt giao</button></div>
 </form>
 @endif
@@ -178,7 +187,7 @@
 <p class="muted">Chưa có bài được cấp.</p>
 @endforelse
 @if($assignmentOverrides->isNotEmpty())<h3>Ngoại lệ cá nhân</h3>@foreach($assignmentOverrides as $override)<p>{{ $override->name }} · {{ $override->title }} · {{ $override->granted ? 'Luôn cấp riêng' : 'Thu hồi riêng' }}</p>@endforeach @endif
-</section>
+</details>
 @elseif($screen === 'settings' && $manage)
 @include('course-management')
 <h2 class="section-title">Cài đặt khóa học</h2>

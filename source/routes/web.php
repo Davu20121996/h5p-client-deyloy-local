@@ -31,6 +31,8 @@ Route::middleware(['auth', 'auth.session', RequireClientAccount::class])->group(
     Route::get('/courses/{course}/report.csv', [LearningManagementController::class, 'report'])->whereNumber('course');
     Route::get('/courses/{course}/roster.csv', [LearningManagementController::class, 'roster'])->whereNumber('course');
     Route::post('/courses/{course}/hub/select', [LtiController::class, 'selectContent'])->whereNumber('course');
+    Route::post('/admin/users/hub', [LtiController::class, 'openAccountForm'])->middleware('throttle:15,1');
+    Route::post('/lti/tenant-account/return', [LtiController::class, 'receiveAccountForm'])->middleware('throttle:15,1')->name('lti.account.return');
     Route::post('/lti/deep-link/return', [LtiController::class, 'selectedContent'])->middleware('throttle:30,1')->name('lti.deep.return');
     Route::put('/admin/users/{user}', [LearningManagementController::class, 'updateUser'])->whereNumber('user');
     Route::post('/admin/users/{user}/password', [LearningManagementController::class, 'resetPassword'])->whereNumber('user')->middleware('throttle:10,1');

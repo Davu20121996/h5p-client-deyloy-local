@@ -38,12 +38,14 @@
 <h1>Tài khoản</h1>
 <div class="section actions">
 
-<x-modal id="user-create" title="Tạo tài khoản">
-<form method="post" action="/admin/users" class="fields">@csrf<input type="hidden" name="_modal" value="user-create">
-<label>Họ tên<input name="name" required></label><label>Email<input name="email" type="email" required></label>
-<label>Vai trò<select name="role"><option value="student">Học viên</option><option value="teacher">Giáo viên</option></select></label>
-<label>Mật khẩu<input name="password" type="password" minlength="12" autocomplete="new-password" required></label>
-<button>Tạo tài khoản</button></form></x-modal>
+@if($hubAccountTool)
+<form method="post" action="/admin/users/hub" target="hub-picker" data-hub-picker-form>
+    @csrf
+    <button class="outline" type="submit">Tạo tài khoản</button>
+</form>
+@else
+<span class="muted">Tổ chức cần kết nối H5P Hub để tạo tài khoản.</span>
+@endif
 <x-modal id="users-import" title="Nhập học viên từ CSV">
 <form method="post" action="/admin/users/import" enctype="multipart/form-data" class="fields">@csrf
 <p>CSV UTF-8, tối đa 500 học viên. Dòng đầu: <code>name,email,password</code>. Mỗi học viên có mật khẩu ban đầu riêng từ 12 ký tự. Email trùng hoặc dòng sai sẽ hủy toàn bộ lượt nhập.</p>
@@ -51,6 +53,19 @@
 </x-modal>
 
 </div>
+@if($hubAccountTool)
+<section class="lesson-player hub-picker-panel" data-hub-picker-panel data-expandable-frame aria-label="Tạo tài khoản trên H5P Hub" hidden>
+    <div class="lesson-toolbar">
+        <div class="lesson-player-label">Tạo tài khoản trên H5P Hub</div>
+        <x-frame-expand />
+    </div>
+    <div class="lesson-stage">
+        <iframe name="hub-picker" class="hub-picker" title="Tạo tài khoản trên H5P Hub" data-hub-picker-frame></iframe>
+    </div>
+</section>
+<script defer src="/frame-expand.js?v={{ filemtime(public_path('frame-expand.js')) }}"></script>
+<script defer src="/hub-picker.js?v={{ filemtime(public_path('hub-picker.js')) }}"></script>
+@endif
 <h2 class="section-title">Danh sách tài khoản</h2>
 @forelse($userGroups as $members)
 <h3 class="section-title">{{ $members->first()->tenant_name ?? 'Tài khoản không thuộc tổ chức' }}</h3>

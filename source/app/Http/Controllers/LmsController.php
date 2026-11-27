@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\ActivityAssignments;
 use App\Services\Gradebook;
+use App\Services\HubProvisioningConfig;
 use App\Services\LearningAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -315,6 +316,7 @@ class LmsController extends Controller
         $tenant = Auth::user()->tenant_id;
 
         return $this->screen('admin', [
+            'hubAccountTool' => $screen === 'users' ? HubProvisioningConfig::accountTool($tenant) : null,
             'roles' => $screen === 'users' ? DB::table('roles')->pluck('name', 'code') : collect(),
             'organization' => $screen === 'tenants' ? DB::table('tenants')->where('id', $tenant)->firstOrFail() : null,
             'screen' => $screen,

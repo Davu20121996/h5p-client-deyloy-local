@@ -1,13 +1,11 @@
 const pickerFrame = document.querySelector('[data-hub-picker-frame]');
 const pickerForm = document.querySelector('[data-hub-picker-form]');
+const pickerPanel = document.querySelector('[data-hub-picker-panel]');
 
-if (pickerFrame && pickerForm) {
-    pickerFrame.hidden = true;
-    pickerForm.addEventListener('submit', (event) => {
-        if (event.submitter?.value !== '0') {
-            pickerFrame.hidden = false;
-            pickerFrame.scrollIntoView({ block: 'nearest' });
-        }
+if (pickerFrame && pickerForm && pickerPanel) {
+    pickerForm.addEventListener('submit', () => {
+        pickerPanel.hidden = false;
+        pickerPanel.scrollIntoView({ block: 'start' });
     });
     window.addEventListener('message', (event) => {
         if (event.origin === window.location.origin

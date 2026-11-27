@@ -8,10 +8,10 @@
         <span class="lesson-kind">H5P · Tương tác</span>
     </header>
     @if($item->instructions)<section class="card"><h2>Hướng dẫn</h2><p class="lesson-instructions">{{ $item->instructions }}</p></section>@endif
-    <section class="lesson-player" data-learning-player aria-label="Không gian bài học">
+    <section class="lesson-player" data-learning-player data-expandable-frame aria-label="Không gian bài học">
         <div class="lesson-toolbar">
             <div class="lesson-player-label"><span class="lesson-dot" aria-hidden="true"></span><span data-learning-label>Sẵn sàng bắt đầu</span></div>
-            <button type="button" class="outline lesson-expand" data-learning-expand aria-pressed="false"><span aria-hidden="true">⛶</span> <span data-expand-label>Phóng to</span></button>
+            <x-frame-expand />
         </div>
         <div class="lesson-stage">
             <div class="lesson-placeholder" data-learning-placeholder>
@@ -32,8 +32,7 @@
         <div class="lesson-result-copy"><span class="eyebrow">TIẾN ĐỘ CỦA BẠN</span><p data-learning-message role="status" aria-live="polite">Sẵn sàng khi bạn muốn bắt đầu.</p></div>
         <div class="lesson-score"><span>{{ $item->grade_policy === 'highest' ? 'Điểm cao nhất' : 'Điểm gần nhất có điểm' }}</span><strong data-learning-score>— <small>/ {{ $item->maximum }}</small></strong></div>
     </section>
-    <details class="lesson-help"><summary>Bài học không hiển thị?</summary><p>Nếu trình duyệt chặn phiên trong khung nhúng, hãy mở bài ở tab mới. Quyền truy cập và thời gian học vẫn được kiểm tra.</p>
-    <form method="post" action="/courses/{{ $item->course_id }}/activities/{{ $item->id }}/launch" target="_blank" rel="noopener" data-learning-external>@csrf<button class="outline">Mở bài ở tab mới</button></form></details>
 </div>
+<script defer src="/frame-expand.js?v={{ filemtime(public_path('frame-expand.js')) }}"></script>
 <script defer src="/learning.js?v={{ filemtime(public_path('learning.js')) }}"></script>
 @endsection

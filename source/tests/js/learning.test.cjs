@@ -23,14 +23,11 @@ function preview() {
     const iframe = element(); iframe.hidden = true;
     const placeholder = element();
     const player = element(); player.querySelector = () => iframe;
-    const expand = element(); expand.querySelector = () => element();
     const launch = element();
-    const external = element();
     const label = element();
     const selectors = {
         '[data-learning-message]': message, '[data-learning-score]': score, '[data-learning-player]': player,
-        '[data-learning-expand]': expand, '[data-learning-label]': label, '[data-learning-launch]': launch,
-        '[data-learning-external]': external, '[data-learning-placeholder]': placeholder,
+        '[data-learning-label]': label, '[data-learning-launch]': launch, '[data-learning-placeholder]': placeholder,
     };
     const panel = { dataset: { learningStatus: '/courses/1/activities/1/status' }, querySelector: key => selectors[key] };
     const context = {
@@ -45,7 +42,7 @@ function preview() {
     };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../public/learning.js'), 'utf8'), context);
     return {
-        message, score, iframe, placeholder, panel, launch, external, handlers, timers,
+        message, score, iframe, placeholder, panel, launch, handlers, timers,
         requests: () => requests,
         result: value => { response = value; },
         status: value => { httpStatus = value; },
@@ -68,16 +65,53 @@ test('loads an existing grade on entry without launching an iframe', async () =>
     assert.match(page.message.textContent, /đã hoàn thành/);
 });
 
-test('opening a new tab still refreshes grades on the original page', async () => {
+test('embedded launch keeps refreshing grades on the lesson page', async () => {
     const page = preview();
     await page.tick();
-    page.external.events.submit();
-    assert.equal(page.iframe.hidden, true);
-    assert.equal(page.placeholder.hidden, false);
+    page.launch.events.submit();
+    assert.equal(page.iframe.hidden, false);
+    assert.equal(page.placeholder.hidden, true);
     page.result({ completed: true, score: 9, maximum: 10 });
     await page.tick();
     assert.equal(page.score.children[0].textContent, '9 ');
     assert.equal(page.panel.dataset.state, 'completed');
+});
+
+test('the shared iframe control expands and restores its panel without changing the iframe', () => {
+    const handlers = new Map();
+    const label = { textContent: 'Phóng to' };
+    const attributes = new Map();
+    const classList = () => {
+        const classes = new Set();
+        return {
+            contains: name => classes.has(name),
+            toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name),
+        };
+    };
+    const button = {
+        querySelector: () => label,
+        addEventListener: (event, action) => handlers.set(event, action),
+        setAttribute: (name, value) => attributes.set(name, value),
+        focus() { this.focused = true; },
+    };
+    const originalIframe = { src: 'https://hub.example/lesson' };
+    const frame = { classList: classList(), iframe: originalIframe, querySelector: () => button };
+    const body = { classList: classList() };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../public/frame-expand.js'), 'utf8'), {
+        document: { body, querySelectorAll: () => [frame], addEventListener: (event, action) => handlers.set(event, action) },
+    });
+
+    handlers.get('click')();
+    assert.equal(label.textContent, 'Thu gọn');
+    assert.equal(attributes.get('aria-pressed'), 'true');
+    assert.equal(frame.classList.contains('is-expanded'), true);
+    assert.equal(body.classList.contains('lesson-expanded'), true);
+    handlers.get('keydown')({ key: 'Escape' });
+    assert.equal(label.textContent, 'Phóng to');
+    assert.equal(attributes.get('aria-pressed'), 'false');
+    assert.equal(body.classList.contains('lesson-expanded'), false);
+    assert.equal(button.focused, true);
+    assert.equal(frame.iframe, originalIframe);
 });
 
 test('revoked access stops polling instead of displaying stale success', async () => {

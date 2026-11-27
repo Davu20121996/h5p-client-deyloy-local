@@ -117,26 +117,35 @@ class LearningManagementController extends Controller
             }
         });
 
-        return back()->with('status', 'Đã lưu danh sách lớp. Ghi danh và giao bài theo lớp là thao tác riêng trong khóa học.');
+        return back()->with('status', 'Đã lưu danh sách lớp. Vào khóa học để giao bài cho lớp này.');
     }
 
     public function courseClassroom(Request $request, int $course)
     {
-        $context = LearningAccess::manageCourse($course);
+        LearningAccess::manageCourse($course);
         $data = $request->validate(['classroom_id' => 'required|integer']);
-        DB::transaction(function () use ($course, $data, $context) {
+        DB::transaction(function () use ($course, $data) {
             $classroom = LearningAccess::classrooms()->where('id', $data['classroom_id'])->lockForUpdate()->firstOrFail();
             abort_if($classroom->archived_at, 422, 'Lớp đã được lưu trữ.');
-            DB::table('course_classrooms')->insertOrIgnore(['course_id' => $course, 'classroom_id' => $classroom->id]);
-            $ids = DB::table('classroom_members')->join('users', 'users.id', '=', 'classroom_members.user_id')
-                ->where('classroom_id', $classroom->id)->where('users.tenant_id', $context->tenant_id)
-                ->where('role', 'student')->where('locked', false)->pluck('user_id');
-            foreach ($ids as $id) {
-                DB::table('enrollments')->insertOrIgnore(['course_id' => $course, 'user_id' => $id]);
-            }
+            $this->enrollClassroom($course, $classroom, $this->activeClassroomStudents($classroom));
         });
 
         return back()->with('status', 'Đã gắn lớp và ghi danh các học viên hiện tại. Bấm lại để bổ sung thành viên mới; thu hồi học viên tại danh sách ghi danh.');
+    }
+
+    private function activeClassroomStudents(object $classroom): array
+    {
+        return DB::table('classroom_members')->join('users', 'users.id', '=', 'classroom_members.user_id')
+            ->where('classroom_id', $classroom->id)->where('users.tenant_id', $classroom->tenant_id)
+            ->where('role', 'student')->where('locked', false)->orderBy('user_id')->pluck('user_id')->all();
+    }
+
+    private function enrollClassroom(int $course, object $classroom, array $students): void
+    {
+        DB::table('course_classrooms')->insertOrIgnore(['course_id' => $course, 'classroom_id' => $classroom->id]);
+        foreach ($students as $student) {
+            DB::table('enrollments')->insertOrIgnore(['course_id' => $course, 'user_id' => $student]);
+        }
     }
 
     public function teachers(Request $request, int $course)
@@ -169,21 +178,56 @@ class LearningManagementController extends Controller
             'activity_id' => 'required|integer', 'audience' => 'required|in:course,classroom',
             'classroom_id' => 'required_if:audience,classroom|nullable|integer', 'granted' => 'required|boolean',
         ]);
-        DB::table('activities')->where('course_id', $course)->where('id', $data['activity_id'])->firstOrFail();
+        $activityId = (int) $data['activity_id'];
+        $granted = $request->boolean('granted');
+        if ($data['audience'] === 'classroom' && $granted) {
+            $message = DB::transaction(function () use ($course, $activityId, $data) {
+                $classroom = LearningAccess::classrooms()->where('id', $data['classroom_id'])->lockForUpdate()->firstOrFail();
+                abort_if($classroom->archived_at, 422, 'Khôi phục lớp trước khi giao bài mới.');
+                $activity = DB::table('activities')->where('course_id', $course)->where('id', $activityId)->lockForUpdate()->firstOrFail();
+                abort_if($activity->archived_at, 422, 'Khôi phục bài học trước khi giao cho lớp.');
+                $students = $this->activeClassroomStudents($classroom);
+                if ($students === []) {
+                    return 'Lớp '.$classroom->name.' chưa có học viên đang hoạt động.';
+                }
+
+                $this->enrollClassroom($course, $classroom, $students);
+                $exceptions = ActivityAssignments::bulk($activityId, $students, true);
+                if (! $activity->published) {
+                    DB::table('activities')->where('id', $activityId)->update(['published' => true]);
+                    $activity->published = true;
+                }
+                $this->audit('activity.bulk_assigned', $activityId);
+
+                $message = 'Đã giao bài cho lớp '.$classroom->name.'. '.count($students).' học viên đang hoạt động của lớp đã có trong khóa học.';
+                if ($exceptions > 0) {
+                    $message .= ' Đã giữ '.$exceptions.' ngoại lệ cá nhân.';
+                }
+
+                return $message.match (LearningAccess::availability($activity)) {
+                    'scheduled' => ' Học viên có thể mở bài khi đến giờ đã đặt.',
+                    'closed' => ' Thời gian mở bài đã kết thúc.',
+                    default => '',
+                };
+            }, 3);
+
+            return back()->with('status', $message);
+        }
+
+        DB::table('activities')->where('course_id', $course)->where('id', $activityId)->firstOrFail();
         if ($data['audience'] === 'classroom') {
             $group = LearningAccess::classrooms()->where('id', $data['classroom_id'])->firstOrFail();
-            abort_if($request->boolean('granted') && $group->archived_at, 422, 'Khôi phục lớp trước khi giao bài mới.');
         }
         $ids = DB::table('enrollments')->join('users', 'users.id', '=', 'enrollments.user_id')
             ->where('course_id', $course)->where('users.tenant_id', $context->tenant_id)->where('role', 'student')
-            ->when($request->boolean('granted'), fn ($q) => $q->where('locked', false))
+            ->when($granted, fn ($q) => $q->where('locked', false))
             ->when($data['audience'] === 'classroom', fn ($q) => $q->whereIn('user_id', DB::table('classroom_members')->where('classroom_id', $data['classroom_id'])->select('user_id')))
             ->pluck('user_id');
         if ($data['audience'] === 'classroom' && $ids->isEmpty()) {
-            return back()->with('status', 'Lớp '.$group->name.' chưa có học viên đã ghi danh phù hợp. Kiểm tra danh sách ở mục Ghi danh theo lớp.');
+            return back()->with('status', 'Lớp '.$group->name.' chưa có học viên trong khóa học này.');
         }
-        $exceptions = ActivityAssignments::bulk((int) $data['activity_id'], $ids->all(), $request->boolean('granted'));
-        $this->audit('activity.bulk_assigned', $data['activity_id']);
+        $exceptions = ActivityAssignments::bulk($activityId, $ids->all(), $granted);
+        $this->audit('activity.bulk_assigned', $activityId);
 
         return back()->with('status', 'Đã cập nhật đợt giao cho '.$ids->count().' học viên, giữ '.$exceptions.' ngoại lệ cá nhân. Học viên ghi danh sau cần được giao bài bổ sung.');
     }

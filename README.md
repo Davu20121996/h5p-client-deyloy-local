@@ -9,7 +9,7 @@
 - Hoạt động có hướng dẫn, thứ tự, lịch mở/hạn nộp/đóng theo giờ Việt Nam, lưu trữ và khôi phục về bản nháp. Hạn nộp đánh dấu trễ; thời gian đóng chặn mở bài và từ chối kết quả có thời điểm ngoài lịch. Kết quả gửi chậm vẫn được nhận nếu thời điểm được công cụ báo nằm trong lịch và quyền còn hiệu lực.
 - Bài đã có lượt mở hoặc điểm được giữ nguyên liên kết, công cụ và thang điểm. Muốn đổi thì tạo hoạt động mới. Không xóa khóa đã có điểm.
 - Sổ điểm chính thức gồm học viên hiện đang ghi danh và được giao bài, kể cả người chưa có kết quả. Lịch sử giữ cả kết quả trước khi thu hồi quyền hoặc lưu trữ bài. Chọn điểm cao nhất/gần nhất có điểm theo từng bài; lọc lớp/bài/trạng thái và xuất CSV theo quyền. Menu **Báo cáo** chọn khóa trong phạm vi được phép xem. Số bản ghi kết quả không đồng nghĩa số lần làm bài. Không giới hạn số lượt làm trong phiên bản này.
-- Trang học có nút mở tab mới khi trình duyệt chặn khung nhúng; trang gốc vẫn cập nhật kết quả. Khi vào lại trang học, điểm đã có được tải ngay, không cần bấm bắt đầu. Phân biệt bài chưa đến giờ mở và đã đóng. Hub vẫn cần gửi kết quả thì Client mới có điểm và trạng thái hoàn thành; Client không tự lấy điểm từ iframe.
+- Trang học có nút phóng to và thu gọn khung bài. Khi vào lại trang học, Client tải điểm hiện có. Client phân biệt bài chưa đến giờ mở và bài đã đóng. Hub gửi điểm và trạng thái hoàn thành qua LTI.
 - **Hồ sơ cá nhân** cho sửa tên/email của chính mình. Đổi email cần mật khẩu hiện tại và thu hồi các phiên khác. **Công cụ LTI → Kiểm tra cấu hình** kiểm tra URL, khóa RSA và cookie đã lưu; không gọi Hub qua mạng và không khẳng định kết nối hai bên đã thành công.
 
 ### Cấp tài khoản từ Hub
@@ -25,9 +25,11 @@ Khi Client trả HTTP 503 từ `/hub/provision`, chạy `php artisan lms:hub-pro
 
 Nút **Đồng bộ tài khoản Client** ở tab **Người dùng LMS** dùng `POST /hub/provision/accounts` với `manager_username` và `account_role` là `teacher` hoặc `tenant_admin`. Client trả `subject` dạng chuỗi số, trùng với claim `sub` của lượt mở LTI. Hub dùng mã này để liên kết người dùng và học liệu với tài khoản Client. Client trả `password_issued: false` và dùng mật khẩu ban đầu cấu hình tại Client cho tài khoản mới.
 
+Trong Client, Tenant Admin chọn **Tài khoản → Tạo tài khoản** để mở biểu mẫu Hub trong iframe. Biểu mẫu dùng phiên LTI của người đang đăng nhập và gửi tên, tên đăng nhập hoặc email, cùng vai trò giáo viên hoặc học viên về Client. Client tạo tài khoản trong tổ chức hiện tại và yêu cầu đổi mật khẩu ở lần đăng nhập đầu tiên. Hub cần bản hỗ trợ đích LTI `client_account_form` để hiển thị biểu mẫu này.
+
 ### Chọn bài từ Hub
 
-Giáo viên vào **Khóa học → Hoạt động H5P** và chọn **Mở thư viện H5P**. Hub được mở trong khung của Client. Client kiểm tra phản hồi đã ký và phiên chọn, tạo một hoạt động nháp rồi cập nhật danh sách. Học sinh mở bài đã giao trong khung bài học. Khi trình duyệt chặn cookie nhúng, dùng **Mở ở tab mới**.
+Giáo viên vào **Khóa học → Hoạt động H5P** và chọn **Mở thư viện H5P**. Hub được mở trong khung của Client. Client kiểm tra phản hồi đã ký và phiên chọn, tạo một hoạt động nháp rồi cập nhật danh sách. Học sinh mở bài đã giao trong khung bài học. Cả hai khung đều có nút **Phóng to** và **Thu gọn**.
 
 Mỗi lượt mở gửi mã người đang đăng nhập, vai trò và deployment trong JWT do Client ký. Giáo viên dùng Instructor, học sinh dùng Learner, Tenant Admin dùng Administrator kèm Instructor. Mật khẩu đi qua yêu cầu cấp tài khoản riêng giữa hai máy chủ. JWT của LTI không chứa mật khẩu. Hai ứng dụng cần HTTPS, SESSION_SECURE_COOKIE=true và SESSION_SAME_SITE=none cho LTI nhúng.
 
