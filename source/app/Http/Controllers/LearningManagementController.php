@@ -160,14 +160,18 @@ class LearningManagementController extends Controller
     public function bulkAssign(Request $request, int $course)
     {
         $context = LearningAccess::manageCourse($course);
+        if (! $request->has('audience') && $request->filled('classroom_id')) {
+            $request->merge($request->input('classroom_id') === 'course'
+                ? ['audience' => 'course', 'classroom_id' => null]
+                : ['audience' => 'classroom']);
+        }
         $data = $request->validate([
             'activity_id' => 'required|integer', 'audience' => 'required|in:course,classroom',
             'classroom_id' => 'required_if:audience,classroom|nullable|integer', 'granted' => 'required|boolean',
         ]);
         DB::table('activities')->where('course_id', $course)->where('id', $data['activity_id'])->firstOrFail();
         if ($data['audience'] === 'classroom') {
-            $group = LearningAccess::classrooms()->join('course_classrooms', 'classrooms.id', '=', 'course_classrooms.classroom_id')
-                ->where('course_id', $course)->where('classroom_id', $data['classroom_id'])->where('tenant_id', $context->tenant_id)->firstOrFail();
+            $group = LearningAccess::classrooms()->where('id', $data['classroom_id'])->firstOrFail();
             abort_if($request->boolean('granted') && $group->archived_at, 422, 'Khôi phục lớp trước khi giao bài mới.');
         }
         $ids = DB::table('enrollments')->join('users', 'users.id', '=', 'enrollments.user_id')
@@ -175,6 +179,9 @@ class LearningManagementController extends Controller
             ->when($request->boolean('granted'), fn ($q) => $q->where('locked', false))
             ->when($data['audience'] === 'classroom', fn ($q) => $q->whereIn('user_id', DB::table('classroom_members')->where('classroom_id', $data['classroom_id'])->select('user_id')))
             ->pluck('user_id');
+        if ($data['audience'] === 'classroom' && $ids->isEmpty()) {
+            return back()->with('status', 'Lớp '.$group->name.' chưa có học viên đã ghi danh phù hợp. Kiểm tra danh sách ở mục Ghi danh theo lớp.');
+        }
         $exceptions = ActivityAssignments::bulk((int) $data['activity_id'], $ids->all(), $request->boolean('granted'));
         $this->audit('activity.bulk_assigned', $data['activity_id']);
 

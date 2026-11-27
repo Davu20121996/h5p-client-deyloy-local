@@ -156,6 +156,37 @@ class LearningManagementTest extends TestCase
         $this->assertDatabaseCount('activity_assignments', 0);
     }
 
+    public function test_bulk_selector_can_target_an_assigned_classroom_before_it_is_linked(): void
+    {
+        $class = $this->classroom();
+        DB::table('classrooms')->where('id', $class)->update(['teacher_id' => $this->teacher->id]);
+        $otherClass = DB::table('classrooms')->insertGetId(['tenant_id' => 1, 'name' => 'Unassigned class']);
+        $target = User::factory()->create(['tenant_id' => 1, 'role' => 'student']);
+        $notEnrolled = User::factory()->create(['tenant_id' => 1, 'role' => 'student']);
+        $otherLearner = User::factory()->create(['tenant_id' => 1, 'role' => 'student']);
+        DB::table('classroom_members')->insert([
+            ['classroom_id' => $class, 'user_id' => $target->id],
+            ['classroom_id' => $class, 'user_id' => $notEnrolled->id],
+        ]);
+        DB::table('enrollments')->insert([
+            ['course_id' => 1, 'user_id' => $target->id],
+            ['course_id' => 1, 'user_id' => $otherLearner->id],
+        ]);
+
+        $this->actingAs($this->teacher)->get('/courses/1/enrollment')->assertOk()
+            ->assertSee('Lớp Class 1')->assertDontSee('Unassigned class');
+        $this->postJson('/courses/1/assign-bulk', ['activity_id' => 1, 'classroom_id' => $otherClass, 'granted' => 1])->assertNotFound();
+        $this->postJson('/courses/1/assign-bulk', ['activity_id' => 1, 'granted' => 1])->assertUnprocessable();
+        $this->post('/courses/1/assign-bulk', ['activity_id' => 1, 'classroom_id' => $class, 'granted' => 1])->assertRedirect();
+        $this->assertDatabaseCount('course_classrooms', 0);
+        $this->assertDatabaseHas('activity_assignments', ['activity_id' => 1, 'user_id' => $target->id]);
+        $this->assertDatabaseMissing('activity_assignments', ['activity_id' => 1, 'user_id' => $notEnrolled->id]);
+        $this->assertDatabaseMissing('activity_assignments', ['activity_id' => 1, 'user_id' => $otherLearner->id]);
+        $this->assertDatabaseMissing('enrollments', ['course_id' => 1, 'user_id' => $notEnrolled->id]);
+        $this->post('/courses/1/assign-bulk', ['activity_id' => 1, 'classroom_id' => 'course', 'granted' => 1])->assertRedirect();
+        $this->assertDatabaseHas('activity_assignments', ['activity_id' => 1, 'user_id' => $otherLearner->id]);
+    }
+
     public function test_coteacher_access_can_be_revoked_and_does_not_allow_managing_teachers_or_deleting_course(): void
     {
         $co = User::factory()->create(['tenant_id' => 1, 'role' => 'teacher']);

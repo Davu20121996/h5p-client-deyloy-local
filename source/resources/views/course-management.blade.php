@@ -19,8 +19,15 @@
 @if($activities->isNotEmpty())
 <form method="post" action="/courses/{{ $course->id }}/assign-bulk" class="fields">@csrf
 <label>Bài học<select name="activity_id">@foreach($activities as $activity)<option value="{{ $activity->id }}">{{ $activity->title }}</option>@endforeach</select></label>
-<label>Đối tượng<select name="audience"><option value="course">Tất cả học viên đã ghi danh</option><option value="classroom">Một lớp đã gắn</option></select></label>
-<label>Lớp khi chọn giao theo lớp<select name="classroom_id"><option value="">Chọn lớp</option>@foreach($classrooms->whereIn('id', $attachedClassrooms) as $classroom)<option value="{{ $classroom->id }}">{{ $classroom->name }}</option>@endforeach</select></label>
+<label>Đối tượng giao bài<select name="classroom_id" required>
+    <option value="">Chọn toàn khóa học hoặc một lớp</option>
+    <option value="course" @selected(old('classroom_id') === 'course')>Tất cả học viên đã ghi danh</option>
+    @foreach($classrooms as $classroom)
+        @if(!$classroom->archived_at || $attachedClassrooms->contains($classroom->id))
+        <option value="{{ $classroom->id }}" @selected(old('classroom_id') == $classroom->id)>Lớp {{ $classroom->name }}{{ $classroom->archived_at ? ' · Chỉ thu hồi' : '' }}</option>
+        @endif
+    @endforeach
+</select></label>
 <div class="actions"><button name="granted" value="1">Giao bài</button><button name="granted" value="0" class="outline">Thu hồi bài</button></div>
 </form>@else<p>Tạo hoạt động trước khi giao bài.</p>@endif
 </section>
