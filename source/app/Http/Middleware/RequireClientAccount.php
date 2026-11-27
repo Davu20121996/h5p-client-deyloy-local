@@ -22,6 +22,9 @@ class RequireClientAccount
         if ($user) {
             abort_unless($user->tenant_id && ! $user->locked
                 && in_array($user->role, ['tenant_admin', 'teacher', 'student'], true), 403);
+            if ($user->must_change_password && ! $request->is('account/password')) {
+                return redirect('/account/password');
+            }
         }
 
         return $next($request);

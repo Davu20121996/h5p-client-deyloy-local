@@ -13,7 +13,7 @@
     </section>
     <section id="login" class="card login"><span class="eyebrow">KHÔNG GIAN LÀM VIỆC</span><h2>Đăng nhập</h2><p>Sử dụng tài khoản do quản trị viên cấp.</p>
     <form method="post" action="/login" class="fields">@csrf
-        <label>Email<input name="email" type="email" value="{{ old('email') }}" autocomplete="username" required></label>
+        <label>Tên đăng nhập hoặc email<input type="text" name="email" value="{{ old('email') }}" maxlength="255" autocomplete="username" autocapitalize="none" required></label>
         <label>Mật khẩu<input name="password" type="password" autocomplete="current-password" required></label>
         <button>Đăng nhập</button>
     </form></section>

@@ -20,12 +20,15 @@ class LmsController extends Controller
 {
     public function login(Request $request)
     {
-        $credentials = $request->validate(['email' => 'required|email|max:255', 'password' => 'required|string|max:1024']);
-        $credentials['email'] = strtolower($credentials['email']);
-        $key = 'login:'.hash('sha256', $credentials['email'].'|'.$request->ip());
+        $credentials = $request->validate(['email' => 'required|string|max:255', 'password' => 'required|string|max:1024']);
+        $login = strtolower(trim($credentials['email']));
+        $field = str_contains($login, '@') ? 'email' : 'username';
+        $key = 'login:'.hash('sha256', $login.'|'.$request->ip());
         abort_if(RateLimiter::tooManyAttempts($key, 5), 429);
         RateLimiter::hit($key, 60);
-        if (! Auth::attempt($credentials + [
+        if (! Auth::attempt([
+            $field => $login,
+            'password' => $credentials['password'],
             'locked' => false,
             fn (Builder $query) => $query->whereNotNull('tenant_id')->whereIn('role', ['tenant_admin', 'teacher', 'student']),
         ])) {
@@ -34,7 +37,7 @@ class LmsController extends Controller
         RateLimiter::clear($key);
         $request->session()->regenerate();
 
-        return $this->respond(redirect('/'));
+        return $this->respond(redirect(Auth::user()->must_change_password ? '/account/password' : '/'));
     }
 
     public function logout(Request $request)
@@ -58,17 +61,20 @@ class LmsController extends Controller
     public function changePassword(Request $request)
     {
         abort_if(Auth::user()->locked, 403);
+        $firstChange = Auth::user()->must_change_password;
         $data = $request->validate([
             'current_password' => 'required|string|max:1024|current_password',
             'password' => 'required|string|min:12|max:1024|confirmed|different:current_password',
         ]);
         DB::transaction(function () use ($data) {
-            Auth::user()->forceFill(['password' => Hash::make($data['password'])])->save();
+            Auth::user()->forceFill([
+                'password' => Hash::make($data['password']), 'must_change_password' => false, 'remember_token' => null,
+            ])->save();
             DB::table('sessions')->where('user_id', Auth::id())->delete();
         });
         $request->session()->regenerate();
 
-        return $this->respond(back(), 'Đã đổi mật khẩu.');
+        return $this->respond($firstChange ? redirect('/') : back(), 'Đã đổi mật khẩu.');
     }
 
     public function changeRole(Request $request, int $id)

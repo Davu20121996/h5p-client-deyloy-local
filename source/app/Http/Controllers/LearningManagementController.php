@@ -337,7 +337,7 @@ class LearningManagementController extends Controller
         }
         $changedEmail = $request->input('email') !== Auth::user()->email;
         $data = $request->validate([
-            'name' => 'required|string|max:255', 'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore(Auth::id())],
+            'name' => 'required|string|max:255', 'email' => ['present', Rule::requiredIf(! Auth::user()->username), 'nullable', 'email', 'max:255', Rule::unique('users')->ignore(Auth::id())],
             'current_password' => [Rule::requiredIf($changedEmail), 'nullable', 'string', 'max:1024', 'current_password'],
         ]);
         DB::transaction(function () use ($data, $changedEmail, $request) {

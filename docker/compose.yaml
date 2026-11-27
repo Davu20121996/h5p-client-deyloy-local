@@ -10,6 +10,7 @@ services:
       APP_URL: ${APP_URL:?Run bash setup.sh first}
       HUB_BASE_URL: ${HUB_BASE_URL:-}
       HUB_PROVISIONING_SECRET: ${HUB_PROVISIONING_SECRET:-}
+      CLIENT_TENANT_ADMIN_INITIAL_PASSWORD: ${CLIENT_TENANT_ADMIN_INITIAL_PASSWORD:-}
       APP_ENV: production
       APP_DEBUG: "false"
       APP_LOCALE: vi

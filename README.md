@@ -19,6 +19,10 @@
 3. Admin Hub cấp tài khoản Tenant Admin cho đơn vị bằng kết nối vừa tạo. Hub gửi yêu cầu tới `POST /hub/provision`. Client tạo tổ chức, tài khoản và kết nối trong cùng giao dịch, đồng thời giữ mật khẩu hiện tại nếu yêu cầu được gửi lại cho tài khoản đã có. Với tổ chức Client cũ, dùng cùng Client ID, Deployment ID và origin Hub để liên kết mà giữ dữ liệu. Tổ chức, email hoặc kết nối đã thuộc bản ghi khác sẽ bị báo xung đột.
 4. Tenant Admin đăng nhập Client và tạo tài khoản giáo viên, học sinh trong **Tài khoản**. Giáo viên ghi danh và giao bài trong khóa học. Admin hệ thống sử dụng trang quản trị Hub.
 
+Đặt `CLIENT_TENANT_ADMIN_INITIAL_PASSWORD` trong cấu hình riêng của Client. Yêu cầu cấp tài khoản nhận `manager_username` hoặc `manager_email`; tài khoản có tên đăng nhập có thể để trống email. Client băm mật khẩu ban đầu từ cấu hình và yêu cầu đổi mật khẩu trước khi vào màn hình quản trị. Đồng bộ lại giữ mật khẩu hiện tại. Có thể dùng `php artisan lms:reset-password <tên-đăng-nhập-hoặc-email>` để đặt lại mật khẩu.
+
+Khi Client trả HTTP 503 từ `/hub/provision`, chạy `php artisan lms:hub-provision-status` trong container để xem cấu hình còn thiếu. Với Dockhand, cập nhật biến trong stack rồi triển khai lại. Để cấp tài khoản chỉ có tên đăng nhập, màn hình **Quản lý đơn vị → Hồ sơ → Cấp tài khoản và đồng bộ LTI** phía Hub cần gửi trường `manager_username`.
+
 ### Chọn bài từ Hub
 
 Giáo viên vào **Khóa học → Hoạt động H5P** và chọn **Mở thư viện H5P**. Hub được mở trong khung của Client. Client kiểm tra phản hồi đã ký và phiên chọn, tạo một hoạt động nháp rồi cập nhật danh sách. Học sinh mở bài đã giao trong khung bài học. Khi trình duyệt chặn cookie nhúng, dùng **Mở ở tab mới**.

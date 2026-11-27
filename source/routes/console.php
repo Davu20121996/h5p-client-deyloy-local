@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\HubProvisioningConfig;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
@@ -41,10 +42,11 @@ Artisan::command('lms:admin-exists', function () {
 });
 
 Artisan::command('lms:reset-password {email}', function () {
-    $email = strtolower(trim($this->argument('email')));
-    $user = DB::table('users')->where('email', $email)->first(['id', 'role', 'tenant_id', 'locked']);
+    $login = strtolower(trim($this->argument('email')));
+    $field = str_contains($login, '@') ? 'email' : 'username';
+    $user = DB::table('users')->where($field, $login)->first(['id', 'role', 'tenant_id', 'locked']);
     if (! $user) {
-        $this->error('Không tìm thấy tài khoản theo email này trong Client.');
+        $this->error('Không tìm thấy tài khoản theo tên đăng nhập hoặc email này trong Client.');
 
         return 1;
     }
@@ -71,10 +73,10 @@ Artisan::command('lms:reset-password {email}', function () {
     }
 
     $hash = Hash::make($password);
-    $updated = DB::transaction(function () use ($user, $email, $hash) {
-        $updated = DB::table('users')->where('id', $user->id)->where('email', $email)
+    $updated = DB::transaction(function () use ($user, $field, $login, $hash) {
+        $updated = DB::table('users')->where('id', $user->id)->where($field, $login)
             ->where('role', $user->role)->where('tenant_id', $user->tenant_id)
-            ->update(['password' => $hash, 'remember_token' => null, 'updated_at' => now()]);
+            ->update(['password' => $hash, 'must_change_password' => false, 'remember_token' => null, 'updated_at' => now()]);
         if ($updated) {
             DB::table('sessions')->where('user_id', $user->id)->delete();
         }
@@ -82,18 +84,31 @@ Artisan::command('lms:reset-password {email}', function () {
         return $updated;
     });
     if (! $updated) {
-        $this->error('Thông tin tài khoản đã thay đổi. Hãy kiểm tra email rồi chạy lại lệnh.');
+        $this->error('Thông tin tài khoản đã thay đổi. Hãy kiểm tra tên đăng nhập hoặc email rồi chạy lại lệnh.');
 
         return 1;
     }
 
-    $this->info('Đã đặt lại mật khẩu và thu hồi phiên đăng nhập của '.$email.'.');
+    $this->info('Đã đặt lại mật khẩu và thu hồi phiên đăng nhập của '.$login.'.');
     if ($user->locked) {
         $this->warn('Tài khoản hiện đang bị khóa.');
     }
 
     return 0;
 })->purpose('Reset the password for an existing Client account');
+
+Artisan::command('lms:hub-provision-status', function () {
+    $validOrigin = HubProvisioningConfig::origin() !== '';
+    $hasSecret = HubProvisioningConfig::secret() !== null;
+    $initialPasswordLength = strlen((string) config('hub.initial_password'));
+    $hasInitialPassword = $initialPasswordLength >= 12 && $initialPasswordLength <= 72;
+
+    $this->line('HUB_BASE_URL: '.($validOrigin ? 'hợp lệ' : 'thiếu hoặc không phải URL HTTPS hợp lệ'));
+    $this->line('HUB_PROVISIONING_SECRET: '.($hasSecret ? 'đã cấu hình' : 'thiếu hoặc ngắn hơn 32 byte'));
+    $this->line('CLIENT_TENANT_ADMIN_INITIAL_PASSWORD: '.($hasInitialPassword ? 'đã cấu hình' : 'cần từ 12 đến 72 byte'));
+
+    return $validOrigin && $hasSecret && $hasInitialPassword ? 0 : 1;
+})->purpose('Check the local configuration for receiving accounts from Hub');
 
 Artisan::command('lti:rotate-key {--if-missing}', function () {
     if ($this->option('if-missing') && DB::table('lti_keys')->whereNull('retired_at')->exists()) {

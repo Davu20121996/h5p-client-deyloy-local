@@ -2,6 +2,9 @@
 @section('title', 'Đổi mật khẩu')
 @section('content')
 <h1>Đổi mật khẩu</h1>
+@if(auth()->user()->must_change_password)
+<p role="status">Đây là lần đăng nhập đầu tiên. Hãy đổi mật khẩu để tiếp tục sử dụng Client.</p>
+@endif
 <section class="card settings-card">
 <form method="post" action="/account/password" class="fields">@csrf
         <label>Mật khẩu hiện tại<input type="password" name="current_password" autocomplete="current-password" required></label>
