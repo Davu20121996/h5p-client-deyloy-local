@@ -40,6 +40,61 @@ Artisan::command('lms:admin-exists', function () {
     $this->line(DB::table('users')->where('role', 'admin')->exists() ? 'yes' : 'no');
 });
 
+Artisan::command('lms:reset-password {email}', function () {
+    $email = strtolower(trim($this->argument('email')));
+    $user = DB::table('users')->where('email', $email)->first(['id', 'role', 'tenant_id', 'locked']);
+    if (! $user) {
+        $this->error('Không tìm thấy tài khoản theo email này trong Client.');
+
+        return 1;
+    }
+    if (! $user->tenant_id || ! in_array($user->role, ['tenant_admin', 'teacher', 'student'], true)) {
+        $this->error('Tài khoản này không có quyền đăng nhập Client. Để đăng nhập với quyền quản trị tổ chức, cấp Tenant Admin từ Hub.');
+
+        return 1;
+    }
+    if (! $this->input->isInteractive()) {
+        $this->error('Hãy chạy lệnh trong terminal tương tác để nhập mật khẩu ẩn.');
+
+        return 1;
+    }
+
+    $password = $this->secret('Mật khẩu mới', false);
+    $confirmation = $this->secret('Nhập lại mật khẩu mới', false);
+    $validator = Validator::make(['password' => $password, 'password_confirmation' => $confirmation], [
+        'password' => 'required|string|min:12|max:1024|confirmed',
+    ]);
+    if ($validator->fails()) {
+        $this->error('Mật khẩu cần từ 12 đến 1024 ký tự và hai lần nhập phải trùng nhau.');
+
+        return 1;
+    }
+
+    $hash = Hash::make($password);
+    $updated = DB::transaction(function () use ($user, $email, $hash) {
+        $updated = DB::table('users')->where('id', $user->id)->where('email', $email)
+            ->where('role', $user->role)->where('tenant_id', $user->tenant_id)
+            ->update(['password' => $hash, 'remember_token' => null, 'updated_at' => now()]);
+        if ($updated) {
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+        }
+
+        return $updated;
+    });
+    if (! $updated) {
+        $this->error('Thông tin tài khoản đã thay đổi. Hãy kiểm tra email rồi chạy lại lệnh.');
+
+        return 1;
+    }
+
+    $this->info('Đã đặt lại mật khẩu và thu hồi phiên đăng nhập của '.$email.'.');
+    if ($user->locked) {
+        $this->warn('Tài khoản hiện đang bị khóa.');
+    }
+
+    return 0;
+})->purpose('Reset the password for an existing Client account');
+
 Artisan::command('lti:rotate-key {--if-missing}', function () {
     if ($this->option('if-missing') && DB::table('lti_keys')->whereNull('retired_at')->exists()) {
         return 0;
