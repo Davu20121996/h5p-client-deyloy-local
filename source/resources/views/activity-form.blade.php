@@ -24,6 +24,10 @@
     @endforeach
     <label>Cách tính điểm<select name="grade_policy"><option value="latest" @selected(($restore ? old('grade_policy') : ($item->grade_policy ?? 'latest')) === 'latest')>Điểm gần nhất có điểm</option><option value="highest" @selected(($restore ? old('grade_policy') : ($item->grade_policy ?? 'latest')) === 'highest')>Điểm cao nhất</option></select></label>
     @if($item)<p>Hoạt động đã có lượt mở hoặc điểm sẽ giữ nguyên bài Hub, công cụ và thang điểm. Tạo hoạt động mới nếu cần đổi.</p>@endif
-    <label class="check"><input name="published" type="checkbox" value="1" @checked($restore ? old('published') : ($item->published ?? false))> Xuất bản</label>
+    @if($item->archived_at ?? false)
+        <p>Chọn <strong>Khôi phục bản nháp</strong> ở danh sách hoạt động để có thể xuất bản lại.</p>
+    @else
+        <label class="check"><input name="published" type="checkbox" value="1" @checked($restore ? old('published') : ($item->published ?? false))> Xuất bản</label>
+    @endif
     <button>{{ $item ? 'Lưu thay đổi' : 'Thêm hoạt động' }}</button>
 </form>

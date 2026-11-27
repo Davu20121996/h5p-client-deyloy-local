@@ -73,7 +73,9 @@
 <x-modal :id="'activity-edit-'.$activity->id" title="Sửa hoạt động H5P">
 @include('activity-form', ['item' => $activity])
 </x-modal>
+@unless($activity->archived_at)
 <form method="post" action="/courses/{{ $course->id }}/activities/{{ $activity->id }}">@csrf<input type="hidden" name="published" value="{{ $activity->published ? 0 : 1 }}"><button class="outline">{{ $activity->published ? 'Ẩn' : 'Xuất bản' }}</button></form>
+@endunless
 <form method="post" action="/courses/{{ $course->id }}/activities/{{ $activity->id }}/archive">@csrf<input type="hidden" name="archived" value="{{ $activity->archived_at ? 0 : 1 }}"><button class="outline">{{ $activity->archived_at ? 'Khôi phục bản nháp' : 'Lưu trữ' }}</button></form>
 @endif
 </div>

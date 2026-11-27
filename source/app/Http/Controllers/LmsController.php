@@ -225,8 +225,12 @@ class LmsController extends Controller
         }
         if ($activity !== null && $request->isMethod('POST')) {
             $request->validate(['published' => 'required|boolean']);
-            abort_if($existing->firstOrFail()->archived_at && $request->boolean('published'), 422, 'Khôi phục bài lưu trữ trước khi xuất bản.');
-            $existing->update(['published' => $request->boolean('published')]);
+            $published = $request->boolean('published');
+            DB::transaction(function () use ($existing, $published) {
+                $old = $existing->lockForUpdate()->firstOrFail();
+                $this->validateActivityPublication($old, $published);
+                $existing->update(['published' => $published]);
+            });
 
             return $this->respond(back(), 'Đã cập nhật trạng thái.');
         }
@@ -259,11 +263,11 @@ class LmsController extends Controller
         if ($activity !== null) {
             DB::transaction(function () use ($existing, $activity, $data) {
                 $old = $existing->lockForUpdate()->firstOrFail();
+                $this->validateActivityPublication($old, $data['published']);
                 $used = DB::table('grades')->where('activity_id', $activity)->exists() || DB::table('audit_logs')->where('event', 'lti.launch')->where('resource_id', $activity)->exists();
                 if ($used && ($old->lti_registration_id != $data['lti_registration_id'] || $old->target_uri !== $data['target_uri'] || $old->maximum != $data['maximum'])) {
                     throw ValidationException::withMessages(['target_uri' => 'Bài đã được mở hoặc có điểm. Hãy tạo hoạt động mới để đổi bài, công cụ hoặc thang điểm.']);
                 }
-                abort_if($old->archived_at && $data['published'], 422, 'Khôi phục bài lưu trữ trước khi xuất bản.');
                 if ($old->target_uri !== $data['target_uri'] || $old->lti_registration_id != $data['lti_registration_id']) {
                     $data['hub_custom'] = null;
                 }
@@ -276,6 +280,13 @@ class LmsController extends Controller
         DB::table('activities')->insert($data + ['course_id' => $id, 'resource_link_id' => (string) Str::uuid()]);
 
         return $this->respond(back(), 'Đã thêm hoạt động.');
+    }
+
+    private function validateActivityPublication(object $activity, bool $published): void
+    {
+        if ($activity->archived_at && $published) {
+            throw ValidationException::withMessages(['published' => 'Bài đang lưu trữ. Hãy chọn Khôi phục bản nháp trước khi xuất bản.']);
+        }
     }
 
     public static function assignedActivities(int $user)

@@ -238,6 +238,28 @@ class LearningManagementTest extends TestCase
         $this->assertDatabaseHas('activities', ['id' => 1, 'archived_at' => null, 'published' => false]);
     }
 
+    public function test_teacher_must_restore_an_archived_activity_before_publishing(): void
+    {
+        $this->actingAs($this->teacher);
+        $list = '/courses/1/activities';
+        $activity = $list.'/1';
+        $this->post($activity.'/archive', ['archived' => 1])->assertRedirect();
+        $this->get($list)->assertOk()->assertSee('Khôi phục bản nháp')
+            ->assertDontSee('<button class="outline">Xuất bản</button>', false);
+
+        $this->from($list)->post($activity, ['published' => 1])
+            ->assertRedirect($list)->assertSessionHasErrors('published');
+        $this->from($list)->put($activity, $this->activityData())
+            ->assertRedirect($list)->assertSessionHasErrors('published');
+        $this->get($list)->assertSee('Bài đang lưu trữ.');
+        $this->assertDatabaseHas('activities', ['id' => 1, 'published' => false]);
+
+        $this->post($activity.'/archive', ['archived' => 0])->assertRedirect();
+        $this->get($list)->assertSee('<button class="outline">Xuất bản</button>', false);
+        $this->post($activity, ['published' => 1])->assertRedirect();
+        $this->assertDatabaseHas('activities', ['id' => 1, 'published' => true]);
+    }
+
     public function test_grade_policy_keeps_pending_progress_separate_and_reports_are_scoped(): void
     {
         foreach ([[8, '2026-11-25 01:00:00', 'Completed'], [3, '2026-11-25 02:00:00', 'Completed'], [null, '2026-11-25 03:00:00', 'InProgress']] as [$score, $at, $progress]) {
